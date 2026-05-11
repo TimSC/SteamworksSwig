@@ -124,6 +124,56 @@ Some global SDK functions still need explicit typemaps before they can be safely
 wrapped, notably callback-result APIs that take `CallbackMsg_t *`, arbitrary
 `void *` buffers, or callback function pointers.
 
+## API Coverage
+
+Coverage is measured against the interface methods listed in
+`sdk/public/steam/steam_api.json`. The wrapper currently generates methods when
+the flat API has a matching accessor and the signature can be represented safely
+with Python scalar/string types. Methods that require output structs, pointer
+buffers, callbacks, or interface pointers usually need explicit shim code.
+
+Current generated interface coverage is **620 of 913 SDK methods, or 67.9%**.
+The module also exports hand-written helpers for initialization, game-server
+initialization, networking payloads, lobby async calls, and friend game/server
+state; those helpers are useful API surface but are not counted in the table
+below because they do not correspond one-to-one with JSON methods.
+
+| Steamworks group | SDK methods | Wrapped | Coverage |
+| --- | ---: | ---: | ---: |
+| `Apps` | 33 | 24 | 72.7% |
+| `Client` | 33 | 0 | 0.0% |
+| `Controller` | 34 | 29 | 85.3% |
+| `Friends` | 78 | 72 | 92.3% |
+| `GameServer` | 41 | 36 | 87.8% |
+| `GameServerStats` | 10 | 7 | 70.0% |
+| `HTMLSurface` | 37 | 30 | 81.1% |
+| `HTTP` | 25 | 15 | 60.0% |
+| `Input` | 48 | 42 | 87.5% |
+| `Inventory` | 38 | 15 | 39.5% |
+| `Matchmaking` | 38 | 33 | 86.8% |
+| `MatchmakingPingResponse` | 2 | 0 | 0.0% |
+| `MatchmakingPlayersResponse` | 3 | 0 | 0.0% |
+| `MatchmakingRulesResponse` | 3 | 0 | 0.0% |
+| `MatchmakingServerListResponse` | 3 | 0 | 0.0% |
+| `MatchmakingServers` | 17 | 7 | 41.2% |
+| `Music` | 9 | 9 | 100.0% |
+| `Networking` | 22 | 11 | 50.0% |
+| `NetworkingFakeUDPPort` | 4 | 0 | 0.0% |
+| `NetworkingMessages` | 6 | 0 | 0.0% |
+| `NetworkingSockets` | 47 | 15 | 31.9% |
+| `NetworkingUtils` | 41 | 21 | 51.2% |
+| `ParentalSettings` | 6 | 6 | 100.0% |
+| `Parties` | 12 | 7 | 58.3% |
+| `RemotePlay` | 20 | 17 | 85.0% |
+| `RemoteStorage` | 59 | 43 | 72.9% |
+| `Screenshots` | 9 | 8 | 88.9% |
+| `Timeline` | 18 | 18 | 100.0% |
+| `UGC` | 99 | 74 | 74.7% |
+| `User` | 33 | 24 | 72.7% |
+| `UserStats` | 44 | 24 | 54.5% |
+| `Utils` | 37 | 31 | 83.8% |
+| `Video` | 4 | 2 | 50.0% |
+
 ## SpaceWar Server, Lobby, And Networking
 
 The wrapper exposes the main APIs used by the Steamworks `steamworksexample`
@@ -209,6 +259,30 @@ You can try lobby listing with:
 
 ```bash
 python3 list_lobbies.py
+```
+
+Friend game/server state is exposed through a Python-friendly wrapper around
+`ISteamFriends::GetFriendGamePlayed`, which avoids the raw `FriendGameInfo_t *`
+output parameter:
+
+```python
+count = steamworks.Steam_Friends_GetFriendCountImmediate()
+for index in range(count):
+    friend_id = steamworks.Steam_Friends_GetFriendByIndexImmediate(index)
+    if not steamworks.Steam_Friends_GetFriendGamePlayedInfo(friend_id):
+        continue
+
+    app_id = steamworks.Steam_Friends_GetFriendGameAppID(friend_id)
+    lobby_id = steamworks.Steam_Friends_GetFriendGameLobbyID(friend_id)
+    game_ip = steamworks.Steam_Friends_GetFriendGameIP(friend_id)
+    game_port = steamworks.Steam_Friends_GetFriendGamePort(friend_id)
+    query_port = steamworks.Steam_Friends_GetFriendGameQueryPort(friend_id)
+```
+
+You can try that with:
+
+```bash
+python3 friends_servers.py
 ```
 
 ## Regenerating

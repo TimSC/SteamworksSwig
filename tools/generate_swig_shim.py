@@ -93,6 +93,19 @@ GLOBAL_DECLARATIONS = [
     "uint32 Steam_Lobby_GetJoinResponse();",
     "bool Steam_Lobby_JoinSucceeded();",
     "int Steam_Lobby_ChatRoomEnterResponseSuccess();",
+    "int Steam_FriendFlagImmediate();",
+    "int Steam_FriendFlagOnGameServer();",
+    "int Steam_FriendFlagAll();",
+    "int Steam_Friends_GetFriendCountImmediate();",
+    "uint64_steamid Steam_Friends_GetFriendByIndexImmediate( int index );",
+    "bool Steam_Friends_GetFriendGamePlayedInfo( uint64_steamid friendID );",
+    "uint64_gameid Steam_Friends_GetFriendGameID( uint64_steamid friendID );",
+    "AppId_t Steam_Friends_GetFriendGameAppID( uint64_steamid friendID );",
+    "uint32 Steam_Friends_GetFriendGameIP( uint64_steamid friendID );",
+    "uint16 Steam_Friends_GetFriendGamePort( uint64_steamid friendID );",
+    "uint16 Steam_Friends_GetFriendGameQueryPort( uint64_steamid friendID );",
+    "uint64_steamid Steam_Friends_GetFriendGameLobbyID( uint64_steamid friendID );",
+    "bool Steam_Friends_IsFriendInCurrentGame( uint64_steamid friendID );",
 ]
 GLOBAL_DEFINITIONS = r'''namespace
 {
@@ -258,6 +271,16 @@ std::vector<std::string> ReceiveMessagesOnPollGroupStrings( ISteamNetworkingSock
 		}
 	}
 	return result;
+}
+
+bool GetFriendGameInfo( uint64_steamid friendID, FriendGameInfo_t *info )
+{
+	ISteamFriends *friends = SteamFriends();
+	if ( !friends || !info )
+	{
+		return false;
+	}
+	return friends->GetFriendGamePlayed( CSteamID( friendID ), info );
 }
 }
 
@@ -691,6 +714,91 @@ bool Steam_Lobby_JoinSucceeded()
 int Steam_Lobby_ChatRoomEnterResponseSuccess()
 {
 	return k_EChatRoomEnterResponseSuccess;
+}
+
+int Steam_FriendFlagImmediate()
+{
+	return k_EFriendFlagImmediate;
+}
+
+int Steam_FriendFlagOnGameServer()
+{
+	return k_EFriendFlagOnGameServer;
+}
+
+int Steam_FriendFlagAll()
+{
+	return k_EFriendFlagAll;
+}
+
+int Steam_Friends_GetFriendCountImmediate()
+{
+	ISteamFriends *friends = SteamFriends();
+	return friends ? friends->GetFriendCount( k_EFriendFlagImmediate ) : 0;
+}
+
+uint64_steamid Steam_Friends_GetFriendByIndexImmediate( int index )
+{
+	ISteamFriends *friends = SteamFriends();
+	if ( !friends || index < 0 )
+	{
+		return 0;
+	}
+	return friends->GetFriendByIndex( index, k_EFriendFlagImmediate ).ConvertToUint64();
+}
+
+bool Steam_Friends_GetFriendGamePlayedInfo( uint64_steamid friendID )
+{
+	FriendGameInfo_t info{};
+	return GetFriendGameInfo( friendID, &info );
+}
+
+uint64_gameid Steam_Friends_GetFriendGameID( uint64_steamid friendID )
+{
+	FriendGameInfo_t info{};
+	return GetFriendGameInfo( friendID, &info ) ? info.m_gameID.ToUint64() : 0;
+}
+
+AppId_t Steam_Friends_GetFriendGameAppID( uint64_steamid friendID )
+{
+	FriendGameInfo_t info{};
+	return GetFriendGameInfo( friendID, &info ) ? static_cast<AppId_t>( info.m_gameID.AppID() ) : k_uAppIdInvalid;
+}
+
+uint32 Steam_Friends_GetFriendGameIP( uint64_steamid friendID )
+{
+	FriendGameInfo_t info{};
+	return GetFriendGameInfo( friendID, &info ) ? info.m_unGameIP : 0;
+}
+
+uint16 Steam_Friends_GetFriendGamePort( uint64_steamid friendID )
+{
+	FriendGameInfo_t info{};
+	return GetFriendGameInfo( friendID, &info ) ? info.m_usGamePort : 0;
+}
+
+uint16 Steam_Friends_GetFriendGameQueryPort( uint64_steamid friendID )
+{
+	FriendGameInfo_t info{};
+	return GetFriendGameInfo( friendID, &info ) ? info.m_usQueryPort : 0;
+}
+
+uint64_steamid Steam_Friends_GetFriendGameLobbyID( uint64_steamid friendID )
+{
+	FriendGameInfo_t info{};
+	return GetFriendGameInfo( friendID, &info ) ? info.m_steamIDLobby.ConvertToUint64() : 0;
+}
+
+bool Steam_Friends_IsFriendInCurrentGame( uint64_steamid friendID )
+{
+	ISteamUtils *utils = SteamUtils();
+	if ( !utils )
+	{
+		return false;
+	}
+
+	const AppId_t friendAppID = Steam_Friends_GetFriendGameAppID( friendID );
+	return friendAppID != k_uAppIdInvalid && friendAppID == utils->GetAppID();
 }'''
 CPP_KEYWORDS = {
     "alignas",
