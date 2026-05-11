@@ -19,6 +19,95 @@ FLAT_TYPEDEFS = {
     "uint64_steamid": "unsigned long long",
     "uint64_gameid": "unsigned long long",
 }
+GLOBAL_DECLARATIONS = [
+    "bool Steam_Init();",
+    "int Steam_InitEx();",
+    "int Steam_InitFlat();",
+    "void Steam_Shutdown();",
+    "void Steam_RunCallbacks();",
+    "bool Steam_IsSteamRunning();",
+    "bool Steam_RestartAppIfNecessary( AppId_t appID );",
+    "void Steam_ReleaseCurrentThreadMemory();",
+    "const char * Steam_GetSteamInstallPath();",
+    "void Steam_SetTryCatchCallbacks( bool enabled );",
+    "void Steam_SetMiniDumpComment( const char * message );",
+    "int Steam_GetLastInitResult();",
+    "const char * Steam_GetLastInitError();",
+]
+GLOBAL_DEFINITIONS = r'''namespace
+{
+SteamErrMsg g_lastInitError = { 0 };
+int g_lastInitResult = 0;
+}
+
+bool Steam_Init()
+{
+	return SteamAPI_Init();
+}
+
+int Steam_InitEx()
+{
+	g_lastInitError[0] = '\0';
+	g_lastInitResult = static_cast<int>( SteamAPI_InitEx( &g_lastInitError ) );
+	return g_lastInitResult;
+}
+
+int Steam_InitFlat()
+{
+	g_lastInitError[0] = '\0';
+	g_lastInitResult = static_cast<int>( SteamAPI_InitFlat( &g_lastInitError ) );
+	return g_lastInitResult;
+}
+
+void Steam_Shutdown()
+{
+	SteamAPI_Shutdown();
+}
+
+void Steam_RunCallbacks()
+{
+	SteamAPI_RunCallbacks();
+}
+
+bool Steam_IsSteamRunning()
+{
+	return SteamAPI_IsSteamRunning();
+}
+
+bool Steam_RestartAppIfNecessary( AppId_t appID )
+{
+	return SteamAPI_RestartAppIfNecessary( appID );
+}
+
+void Steam_ReleaseCurrentThreadMemory()
+{
+	SteamAPI_ReleaseCurrentThreadMemory();
+}
+
+const char * Steam_GetSteamInstallPath()
+{
+	return SteamAPI_GetSteamInstallPath();
+}
+
+void Steam_SetTryCatchCallbacks( bool enabled )
+{
+	SteamAPI_SetTryCatchCallbacks( enabled );
+}
+
+void Steam_SetMiniDumpComment( const char * message )
+{
+	SteamAPI_SetMiniDumpComment( message );
+}
+
+int Steam_GetLastInitResult()
+{
+	return g_lastInitResult;
+}
+
+const char * Steam_GetLastInitError()
+{
+	return g_lastInitError;
+}'''
 CPP_KEYWORDS = {
     "alignas",
     "alignof",
@@ -223,10 +312,7 @@ def generate(api: dict, output_dir: Path) -> None:
                 "",
                 '#include "steam/steam_api_flat.h"',
                 "",
-                "bool Steam_Init();",
-                "void Steam_Shutdown();",
-                "void Steam_RunCallbacks();",
-                "bool Steam_IsSteamRunning();",
+                *GLOBAL_DECLARATIONS,
                 "",
                 *[declaration(method) for method in methods],
                 "",
@@ -238,27 +324,7 @@ def generate(api: dict, output_dir: Path) -> None:
     source.write_text(
         "\n\n".join(
             [
-                '#include "steamworks_swig_shim.h"\n'
-                "\n"
-                "bool Steam_Init()\n"
-                "{\n"
-                "\treturn SteamAPI_Init();\n"
-                "}\n"
-                "\n"
-                "void Steam_Shutdown()\n"
-                "{\n"
-                "\tSteamAPI_Shutdown();\n"
-                "}\n"
-                "\n"
-                "void Steam_RunCallbacks()\n"
-                "{\n"
-                "\tSteamAPI_RunCallbacks();\n"
-                "}\n"
-                "\n"
-                "bool Steam_IsSteamRunning()\n"
-                "{\n"
-                "\treturn SteamAPI_IsSteamRunning();\n"
-                "}",
+                '#include "steamworks_swig_shim.h"\n\n' + GLOBAL_DEFINITIONS,
                 *[definition(method) for method in methods],
                 "",
             ]

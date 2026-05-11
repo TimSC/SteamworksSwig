@@ -69,6 +69,30 @@ Steam ID: 7656119...
 Subscribed to app: yes
 ```
 
+The smoke test uses `Steam_InitEx()` and prints `Steam_GetLastInitError()` if
+Steamworks initialization fails.
+
+## Global Helpers
+
+The generated module includes a small hand-written global API shim in addition
+to the JSON-derived interface methods:
+
+```python
+steamworks.Steam_Init()
+steamworks.Steam_InitEx()
+steamworks.Steam_InitFlat()
+steamworks.Steam_GetLastInitResult()
+steamworks.Steam_GetLastInitError()
+steamworks.Steam_Shutdown()
+steamworks.Steam_RunCallbacks()
+steamworks.Steam_IsSteamRunning()
+steamworks.Steam_RestartAppIfNecessary(app_id)
+steamworks.Steam_ReleaseCurrentThreadMemory()
+steamworks.Steam_GetSteamInstallPath()
+steamworks.Steam_SetTryCatchCallbacks(enabled)
+steamworks.Steam_SetMiniDumpComment(message)
+```
+
 ## Regenerating
 
 The generator can be run directly:

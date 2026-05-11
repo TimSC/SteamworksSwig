@@ -23,8 +23,9 @@ def main() -> int:
         print("Start Steam, log in, then run this program again from this directory.", file=sys.stderr)
         return 1
 
-    if not steamworks.Steam_Init():
-        print("Steam_Init failed.", file=sys.stderr)
+    init_result = steamworks.Steam_InitEx()
+    if init_result != 0:
+        print(f"Steam_InitEx failed ({init_result}): {steamworks.Steam_GetLastInitError()}", file=sys.stderr)
         print("Make sure Steam is running and steam_appid.txt is in the working directory.", file=sys.stderr)
         return 1
 
