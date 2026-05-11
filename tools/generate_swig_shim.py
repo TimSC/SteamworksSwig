@@ -55,6 +55,44 @@ GLOBAL_DECLARATIONS = [
     "int Steam_ServerModeAuthentication();",
     "int Steam_ServerModeAuthenticationAndSecure();",
     "uint16 Steam_GameServer_QueryPortShared();",
+    "HSteamListenSocket Steam_NetworkingSockets_CreateListenSocketP2PNoOptions( int localVirtualPort );",
+    "HSteamNetConnection Steam_NetworkingSockets_ConnectP2PSteamIDNoOptions( uint64_steamid steamID, int remoteVirtualPort );",
+    "int Steam_NetworkingSockets_SendMessageToConnectionString( HSteamNetConnection connection, const std::string & data, int sendFlags );",
+    "std::vector<std::string> Steam_NetworkingSockets_ReceiveMessagesOnConnectionStrings( HSteamNetConnection connection, int maxMessages );",
+    "std::vector<std::string> Steam_NetworkingSockets_ReceiveMessagesOnPollGroupStrings( HSteamNetPollGroup pollGroup, int maxMessages );",
+    "std::string Steam_NetworkingSockets_GetConnectionNameString( HSteamNetConnection connection );",
+    "std::string Steam_NetworkingSockets_GetDetailedConnectionStatusString( HSteamNetConnection connection );",
+    "HSteamListenSocket Steam_GameServerNetworkingSockets_CreateListenSocketP2PNoOptions( int localVirtualPort );",
+    "HSteamNetPollGroup Steam_GameServerNetworkingSockets_CreatePollGroup();",
+    "bool Steam_GameServerNetworkingSockets_DestroyPollGroup( HSteamNetPollGroup pollGroup );",
+    "int Steam_GameServerNetworkingSockets_AcceptConnection( HSteamNetConnection connection );",
+    "bool Steam_GameServerNetworkingSockets_CloseConnection( HSteamNetConnection connection, int reason, const char * debugMessage, bool enableLinger );",
+    "bool Steam_GameServerNetworkingSockets_CloseListenSocket( HSteamListenSocket listenSocket );",
+    "bool Steam_GameServerNetworkingSockets_SetConnectionPollGroup( HSteamNetConnection connection, HSteamNetPollGroup pollGroup );",
+    "int Steam_GameServerNetworkingSockets_SendMessageToConnectionString( HSteamNetConnection connection, const std::string & data, int sendFlags );",
+    "std::vector<std::string> Steam_GameServerNetworkingSockets_ReceiveMessagesOnConnectionStrings( HSteamNetConnection connection, int maxMessages );",
+    "std::vector<std::string> Steam_GameServerNetworkingSockets_ReceiveMessagesOnPollGroupStrings( HSteamNetPollGroup pollGroup, int maxMessages );",
+    "int Steam_NetworkingSend_Unreliable();",
+    "int Steam_NetworkingSend_UnreliableNoDelay();",
+    "int Steam_NetworkingSend_Reliable();",
+    "int Steam_NetworkingSend_ReliableNoNagle();",
+    "int Steam_NetConnectionEnd_AppGeneric();",
+    "int Steam_NetConnectionEnd_AppExceptionGeneric();",
+    "SteamAPICall_t Steam_Lobby_RequestList();",
+    "bool Steam_Lobby_IsListPending();",
+    "bool Steam_Lobby_IsListComplete();",
+    "bool Steam_Lobby_ListHadIOFailure();",
+    "uint32 Steam_Lobby_GetListResultCount();",
+    "uint64_steamid Steam_Lobby_GetListLobbyByIndex( int index );",
+    "std::string Steam_Lobby_GetListLobbyNameByIndex( int index );",
+    "SteamAPICall_t Steam_Lobby_Join( uint64_steamid lobbyID );",
+    "bool Steam_Lobby_IsJoinPending();",
+    "bool Steam_Lobby_IsJoinComplete();",
+    "bool Steam_Lobby_JoinHadIOFailure();",
+    "uint64_steamid Steam_Lobby_GetJoinedLobbyID();",
+    "uint32 Steam_Lobby_GetJoinResponse();",
+    "bool Steam_Lobby_JoinSucceeded();",
+    "int Steam_Lobby_ChatRoomEnterResponseSuccess();",
 ]
 GLOBAL_DEFINITIONS = r'''namespace
 {
@@ -62,6 +100,165 @@ SteamErrMsg g_lastInitError = { 0 };
 int g_lastInitResult = 0;
 SteamErrMsg g_lastGameServerInitError = { 0 };
 int g_lastGameServerInitResult = 0;
+
+class LobbyAsyncState
+{
+public:
+	SteamAPICall_t RequestList()
+	{
+		m_listPending = false;
+		m_listComplete = false;
+		m_listIOFailure = false;
+		m_lobbyCount = 0;
+
+		ISteamMatchmaking *matchmaking = SteamMatchmaking();
+		if ( !matchmaking )
+		{
+			m_listComplete = true;
+			m_listIOFailure = true;
+			return k_uAPICallInvalid;
+		}
+
+		SteamAPICall_t call = matchmaking->RequestLobbyList();
+		if ( call == k_uAPICallInvalid )
+		{
+			m_listComplete = true;
+			m_listIOFailure = true;
+			return call;
+		}
+
+		m_listPending = true;
+		m_listCallResult.Set( call, this, &LobbyAsyncState::OnLobbyMatchList );
+		return call;
+	}
+
+	SteamAPICall_t Join( uint64_steamid lobbyID )
+	{
+		m_joinPending = false;
+		m_joinComplete = false;
+		m_joinIOFailure = false;
+		m_joinedLobbyID = 0;
+		m_joinResponse = 0;
+
+		ISteamMatchmaking *matchmaking = SteamMatchmaking();
+		if ( !matchmaking )
+		{
+			m_joinComplete = true;
+			m_joinIOFailure = true;
+			return k_uAPICallInvalid;
+		}
+
+		SteamAPICall_t call = matchmaking->JoinLobby( CSteamID( lobbyID ) );
+		if ( call == k_uAPICallInvalid )
+		{
+			m_joinComplete = true;
+			m_joinIOFailure = true;
+			return call;
+		}
+
+		m_joinPending = true;
+		m_joinCallResult.Set( call, this, &LobbyAsyncState::OnLobbyEnter );
+		return call;
+	}
+
+	bool IsListPending() const { return m_listPending; }
+	bool IsListComplete() const { return m_listComplete; }
+	bool ListHadIOFailure() const { return m_listIOFailure; }
+	uint32 GetLobbyCount() const { return m_lobbyCount; }
+	bool IsJoinPending() const { return m_joinPending; }
+	bool IsJoinComplete() const { return m_joinComplete; }
+	bool JoinHadIOFailure() const { return m_joinIOFailure; }
+	uint64_steamid GetJoinedLobbyID() const { return m_joinedLobbyID; }
+	uint32 GetJoinResponse() const { return m_joinResponse; }
+
+private:
+	void OnLobbyMatchList( LobbyMatchList_t *result, bool ioFailure )
+	{
+		m_listPending = false;
+		m_listComplete = true;
+		m_listIOFailure = ioFailure;
+		m_lobbyCount = result ? result->m_nLobbiesMatching : 0;
+	}
+
+	void OnLobbyEnter( LobbyEnter_t *result, bool ioFailure )
+	{
+		m_joinPending = false;
+		m_joinComplete = true;
+		m_joinIOFailure = ioFailure;
+		m_joinedLobbyID = result ? result->m_ulSteamIDLobby : 0;
+		m_joinResponse = result ? result->m_EChatRoomEnterResponse : 0;
+	}
+
+	CCallResult<LobbyAsyncState, LobbyMatchList_t> m_listCallResult;
+	CCallResult<LobbyAsyncState, LobbyEnter_t> m_joinCallResult;
+	bool m_listPending = false;
+	bool m_listComplete = false;
+	bool m_listIOFailure = false;
+	uint32 m_lobbyCount = 0;
+	bool m_joinPending = false;
+	bool m_joinComplete = false;
+	bool m_joinIOFailure = false;
+	uint64_steamid m_joinedLobbyID = 0;
+	uint32 m_joinResponse = 0;
+};
+
+LobbyAsyncState g_lobbyAsyncState;
+
+std::vector<std::string> ReceiveMessagesOnConnectionStrings( ISteamNetworkingSockets *sockets, HSteamNetConnection connection, int maxMessages )
+{
+	std::vector<std::string> result;
+	if ( !sockets || maxMessages <= 0 )
+	{
+		return result;
+	}
+
+	std::vector<SteamNetworkingMessage_t *> messages( static_cast<size_t>( maxMessages ), nullptr );
+	const int count = sockets->ReceiveMessagesOnConnection( connection, messages.data(), maxMessages );
+	if ( count <= 0 )
+	{
+		return result;
+	}
+
+	result.reserve( static_cast<size_t>( count ) );
+	for ( int index = 0; index < count; ++index )
+	{
+		SteamNetworkingMessage_t *message = messages[static_cast<size_t>( index )];
+		if ( message )
+		{
+			result.emplace_back( static_cast<const char *>( message->m_pData ), static_cast<size_t>( message->m_cbSize ) );
+			message->Release();
+		}
+	}
+	return result;
+}
+
+std::vector<std::string> ReceiveMessagesOnPollGroupStrings( ISteamNetworkingSockets *sockets, HSteamNetPollGroup pollGroup, int maxMessages )
+{
+	std::vector<std::string> result;
+	if ( !sockets || maxMessages <= 0 )
+	{
+		return result;
+	}
+
+	std::vector<SteamNetworkingMessage_t *> messages( static_cast<size_t>( maxMessages ), nullptr );
+	const int count = sockets->ReceiveMessagesOnPollGroup( pollGroup, messages.data(), maxMessages );
+	if ( count <= 0 )
+	{
+		return result;
+	}
+
+	result.reserve( static_cast<size_t>( count ) );
+	for ( int index = 0; index < count; ++index )
+	{
+		SteamNetworkingMessage_t *message = messages[static_cast<size_t>( index )];
+		if ( message )
+		{
+			result.emplace_back( static_cast<const char *>( message->m_pData ), static_cast<size_t>( message->m_cbSize ) );
+			message->Release();
+		}
+	}
+	return result;
+}
 }
 
 bool Steam_Init()
@@ -245,6 +442,255 @@ int Steam_ServerModeAuthenticationAndSecure()
 uint16 Steam_GameServer_QueryPortShared()
 {
 	return STEAMGAMESERVER_QUERY_PORT_SHARED;
+}
+
+HSteamListenSocket Steam_NetworkingSockets_CreateListenSocketP2PNoOptions( int localVirtualPort )
+{
+	auto *sockets = SteamAPI_SteamNetworkingSockets_SteamAPI();
+	return sockets ? sockets->CreateListenSocketP2P( localVirtualPort, 0, nullptr ) : HSteamListenSocket{};
+}
+
+HSteamNetConnection Steam_NetworkingSockets_ConnectP2PSteamIDNoOptions( uint64_steamid steamID, int remoteVirtualPort )
+{
+	auto *sockets = SteamAPI_SteamNetworkingSockets_SteamAPI();
+	if ( !sockets )
+	{
+		return HSteamNetConnection{};
+	}
+
+	SteamNetworkingIdentity identity;
+	identity.SetSteamID64( steamID );
+	return sockets->ConnectP2P( identity, remoteVirtualPort, 0, nullptr );
+}
+
+int Steam_NetworkingSockets_SendMessageToConnectionString( HSteamNetConnection connection, const std::string & data, int sendFlags )
+{
+	auto *sockets = SteamAPI_SteamNetworkingSockets_SteamAPI();
+	if ( !sockets )
+	{
+		return k_EResultInvalidState;
+	}
+	return static_cast<int>( sockets->SendMessageToConnection( connection, data.data(), static_cast<uint32>( data.size() ), sendFlags, nullptr ) );
+}
+
+std::vector<std::string> Steam_NetworkingSockets_ReceiveMessagesOnConnectionStrings( HSteamNetConnection connection, int maxMessages )
+{
+	return ReceiveMessagesOnConnectionStrings( SteamAPI_SteamNetworkingSockets_SteamAPI(), connection, maxMessages );
+}
+
+std::vector<std::string> Steam_NetworkingSockets_ReceiveMessagesOnPollGroupStrings( HSteamNetPollGroup pollGroup, int maxMessages )
+{
+	return ReceiveMessagesOnPollGroupStrings( SteamAPI_SteamNetworkingSockets_SteamAPI(), pollGroup, maxMessages );
+}
+
+std::string Steam_NetworkingSockets_GetConnectionNameString( HSteamNetConnection connection )
+{
+	auto *sockets = SteamAPI_SteamNetworkingSockets_SteamAPI();
+	if ( !sockets )
+	{
+		return {};
+	}
+
+	char buffer[256] = { 0 };
+	return sockets->GetConnectionName( connection, buffer, sizeof( buffer ) ) ? std::string( buffer ) : std::string();
+}
+
+std::string Steam_NetworkingSockets_GetDetailedConnectionStatusString( HSteamNetConnection connection )
+{
+	auto *sockets = SteamAPI_SteamNetworkingSockets_SteamAPI();
+	if ( !sockets )
+	{
+		return {};
+	}
+
+	char buffer[4096] = { 0 };
+	const int result = sockets->GetDetailedConnectionStatus( connection, buffer, sizeof( buffer ) );
+	return result >= 0 ? std::string( buffer ) : std::string();
+}
+
+HSteamListenSocket Steam_GameServerNetworkingSockets_CreateListenSocketP2PNoOptions( int localVirtualPort )
+{
+	auto *sockets = SteamAPI_SteamGameServerNetworkingSockets_SteamAPI();
+	return sockets ? sockets->CreateListenSocketP2P( localVirtualPort, 0, nullptr ) : HSteamListenSocket{};
+}
+
+HSteamNetPollGroup Steam_GameServerNetworkingSockets_CreatePollGroup()
+{
+	auto *sockets = SteamAPI_SteamGameServerNetworkingSockets_SteamAPI();
+	return sockets ? sockets->CreatePollGroup() : HSteamNetPollGroup{};
+}
+
+bool Steam_GameServerNetworkingSockets_DestroyPollGroup( HSteamNetPollGroup pollGroup )
+{
+	auto *sockets = SteamAPI_SteamGameServerNetworkingSockets_SteamAPI();
+	return sockets ? sockets->DestroyPollGroup( pollGroup ) : false;
+}
+
+int Steam_GameServerNetworkingSockets_AcceptConnection( HSteamNetConnection connection )
+{
+	auto *sockets = SteamAPI_SteamGameServerNetworkingSockets_SteamAPI();
+	return sockets ? static_cast<int>( sockets->AcceptConnection( connection ) ) : k_EResultInvalidState;
+}
+
+bool Steam_GameServerNetworkingSockets_CloseConnection( HSteamNetConnection connection, int reason, const char * debugMessage, bool enableLinger )
+{
+	auto *sockets = SteamAPI_SteamGameServerNetworkingSockets_SteamAPI();
+	return sockets ? sockets->CloseConnection( connection, reason, debugMessage, enableLinger ) : false;
+}
+
+bool Steam_GameServerNetworkingSockets_CloseListenSocket( HSteamListenSocket listenSocket )
+{
+	auto *sockets = SteamAPI_SteamGameServerNetworkingSockets_SteamAPI();
+	return sockets ? sockets->CloseListenSocket( listenSocket ) : false;
+}
+
+bool Steam_GameServerNetworkingSockets_SetConnectionPollGroup( HSteamNetConnection connection, HSteamNetPollGroup pollGroup )
+{
+	auto *sockets = SteamAPI_SteamGameServerNetworkingSockets_SteamAPI();
+	return sockets ? sockets->SetConnectionPollGroup( connection, pollGroup ) : false;
+}
+
+int Steam_GameServerNetworkingSockets_SendMessageToConnectionString( HSteamNetConnection connection, const std::string & data, int sendFlags )
+{
+	auto *sockets = SteamAPI_SteamGameServerNetworkingSockets_SteamAPI();
+	if ( !sockets )
+	{
+		return k_EResultInvalidState;
+	}
+	return static_cast<int>( sockets->SendMessageToConnection( connection, data.data(), static_cast<uint32>( data.size() ), sendFlags, nullptr ) );
+}
+
+std::vector<std::string> Steam_GameServerNetworkingSockets_ReceiveMessagesOnConnectionStrings( HSteamNetConnection connection, int maxMessages )
+{
+	return ReceiveMessagesOnConnectionStrings( SteamAPI_SteamGameServerNetworkingSockets_SteamAPI(), connection, maxMessages );
+}
+
+std::vector<std::string> Steam_GameServerNetworkingSockets_ReceiveMessagesOnPollGroupStrings( HSteamNetPollGroup pollGroup, int maxMessages )
+{
+	return ReceiveMessagesOnPollGroupStrings( SteamAPI_SteamGameServerNetworkingSockets_SteamAPI(), pollGroup, maxMessages );
+}
+
+int Steam_NetworkingSend_Unreliable()
+{
+	return k_nSteamNetworkingSend_Unreliable;
+}
+
+int Steam_NetworkingSend_UnreliableNoDelay()
+{
+	return k_nSteamNetworkingSend_UnreliableNoDelay;
+}
+
+int Steam_NetworkingSend_Reliable()
+{
+	return k_nSteamNetworkingSend_Reliable;
+}
+
+int Steam_NetworkingSend_ReliableNoNagle()
+{
+	return k_nSteamNetworkingSend_ReliableNoNagle;
+}
+
+int Steam_NetConnectionEnd_AppGeneric()
+{
+	return k_ESteamNetConnectionEnd_App_Generic;
+}
+
+int Steam_NetConnectionEnd_AppExceptionGeneric()
+{
+	return k_ESteamNetConnectionEnd_AppException_Generic;
+}
+
+SteamAPICall_t Steam_Lobby_RequestList()
+{
+	return g_lobbyAsyncState.RequestList();
+}
+
+bool Steam_Lobby_IsListPending()
+{
+	return g_lobbyAsyncState.IsListPending();
+}
+
+bool Steam_Lobby_IsListComplete()
+{
+	return g_lobbyAsyncState.IsListComplete();
+}
+
+bool Steam_Lobby_ListHadIOFailure()
+{
+	return g_lobbyAsyncState.ListHadIOFailure();
+}
+
+uint32 Steam_Lobby_GetListResultCount()
+{
+	return g_lobbyAsyncState.GetLobbyCount();
+}
+
+uint64_steamid Steam_Lobby_GetListLobbyByIndex( int index )
+{
+	if ( index < 0 || static_cast<uint32>( index ) >= g_lobbyAsyncState.GetLobbyCount() )
+	{
+		return 0;
+	}
+	ISteamMatchmaking *matchmaking = SteamMatchmaking();
+	return matchmaking ? matchmaking->GetLobbyByIndex( index ).ConvertToUint64() : 0;
+}
+
+std::string Steam_Lobby_GetListLobbyNameByIndex( int index )
+{
+	const uint64_steamid lobbyID = Steam_Lobby_GetListLobbyByIndex( index );
+	if ( lobbyID == 0 )
+	{
+		return {};
+	}
+	ISteamMatchmaking *matchmaking = SteamMatchmaking();
+	if ( !matchmaking )
+	{
+		return {};
+	}
+	const char *name = matchmaking->GetLobbyData( CSteamID( lobbyID ), "name" );
+	return name ? std::string( name ) : std::string();
+}
+
+SteamAPICall_t Steam_Lobby_Join( uint64_steamid lobbyID )
+{
+	return g_lobbyAsyncState.Join( lobbyID );
+}
+
+bool Steam_Lobby_IsJoinPending()
+{
+	return g_lobbyAsyncState.IsJoinPending();
+}
+
+bool Steam_Lobby_IsJoinComplete()
+{
+	return g_lobbyAsyncState.IsJoinComplete();
+}
+
+bool Steam_Lobby_JoinHadIOFailure()
+{
+	return g_lobbyAsyncState.JoinHadIOFailure();
+}
+
+uint64_steamid Steam_Lobby_GetJoinedLobbyID()
+{
+	return g_lobbyAsyncState.GetJoinedLobbyID();
+}
+
+uint32 Steam_Lobby_GetJoinResponse()
+{
+	return g_lobbyAsyncState.GetJoinResponse();
+}
+
+bool Steam_Lobby_JoinSucceeded()
+{
+	return g_lobbyAsyncState.IsJoinComplete()
+		&& !g_lobbyAsyncState.JoinHadIOFailure()
+		&& g_lobbyAsyncState.GetJoinResponse() == k_EChatRoomEnterResponseSuccess;
+}
+
+int Steam_Lobby_ChatRoomEnterResponseSuccess()
+{
+	return k_EChatRoomEnterResponseSuccess;
 }'''
 CPP_KEYWORDS = {
     "alignas",
@@ -448,6 +894,9 @@ def generate(api: dict, output_dir: Path) -> None:
             [
                 "#pragma once",
                 "",
+                "#include <string>",
+                "#include <vector>",
+                "",
                 '#include "steam/steam_api_flat.h"',
                 '#include "steam/steam_gameserver.h"',
                 "",
@@ -479,6 +928,10 @@ def generate(api: dict, output_dir: Path) -> None:
                 "%{",
                 '#include "steamworks_swig_shim.h"',
                 "%}",
+                "",
+                "%include <std_string.i>",
+                "%include <std_vector.i>",
+                "%template(StringVector) std::vector<std::string>;",
                 "",
                 *swig_type_declarations(api, methods),
                 "",
