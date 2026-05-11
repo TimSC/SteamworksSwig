@@ -132,11 +132,17 @@ the flat API has a matching accessor and the signature can be represented safely
 with Python scalar/string types. Methods that require output structs, pointer
 buffers, callbacks, or interface pointers usually need explicit shim code.
 
-Current generated interface coverage is **620 of 913 SDK methods, or 67.9%**.
-The module also exports hand-written helpers for initialization, game-server
-initialization, networking payloads, lobby async calls, and friend game/server
-state; those helpers are useful API surface but are not counted in the table
-below because they do not correspond one-to-one with JSON methods.
+Current generated interface coverage is **620 of 913 SDK method overloads, or
+67.9%**. Those 620 SDK methods collapse to 614 unique Python function names
+where Valve exposes C++ overloads with the same method name.
+
+The generated module currently exports **709 unique `Steam_*` Python
+functions**. Of those, **95 are hand-written helper functions** for
+initialization, game-server initialization, networking payloads,
+`ISteamNetworkingSockets` connection-status polling, lobby async calls, and
+friend game/server state. Those helpers are useful API surface, but they are not
+counted in the table below because they do not correspond one-to-one with JSON
+methods.
 
 | Steamworks group | SDK methods | Wrapped | Coverage |
 | --- | ---: | ---: | ---: |
@@ -211,6 +217,9 @@ The networking-sockets helpers add Python-friendly overloads for the pointer-hea
 payload methods used by the example:
 
 ```python
+steamworks.Steam_NetworkingUtils_InitRelayNetworkAccess()
+steamworks.Steam_NetworkingSockets_EnableConnectionStatusCallbacks()
+
 listen_socket = steamworks.Steam_GameServerNetworkingSockets_CreateListenSocketP2PNoOptions(0)
 poll_group = steamworks.Steam_GameServerNetworkingSockets_CreatePollGroup()
 steamworks.Steam_GameServerNetworkingSockets_AcceptConnection(connection)
@@ -231,10 +240,37 @@ steamworks.Steam_NetworkingSockets_SendMessageToConnectionString(
 messages = steamworks.Steam_NetworkingSockets_ReceiveMessagesOnConnectionStrings(connection, 32)
 ```
 
-The remaining major gap for a full SpaceWar port is callback delivery. Lobby
-creation, lobby enter, lobby list results, connection-status changes, and server
-browser responses are callback-driven in the C++ example. Those need callback
-struct typemaps or a higher-level polling/event shim.
+`ISteamNetworkingSockets` connection status callbacks are exposed as a small
+polling shim. Call `Steam_RunCallbacks()`, then drain queued status changes:
+
+```python
+for line in steamworks.Steam_NetworkingSockets_PollConnectionStatusChangedStrings(32):
+    fields = dict(part.split("=", 1) for part in line.split("\t"))
+    connection = int(fields["connection"])
+    state = int(fields["state"])
+
+    if state == steamworks.Steam_NetworkingConnectionState_Connecting():
+        steamworks.Steam_NetworkingSockets_AcceptConnection(connection)
+```
+
+You can try a basic NAT-friendly Steam P2P connection with two Steam accounts.
+Run this on the listening account:
+
+```bash
+python3 p2p_sockets_demo.py --message "hello from listener" listen
+```
+
+Then run this from the connecting account, using the SteamID printed by the
+listener:
+
+```bash
+python3 p2p_sockets_demo.py --message "hello from connector" connect 7656119...
+```
+
+The remaining major gap for a full SpaceWar port is broad callback delivery.
+Lobby creation, lobby enter, lobby list results, and server browser responses
+are callback-driven in the C++ example. Those still need callback struct
+typemaps or higher-level polling/event shims.
 
 There is currently a small higher-level lobby shim for listing and joining
 lobbies:

@@ -57,6 +57,9 @@ GLOBAL_DECLARATIONS = [
     "uint16 Steam_GameServer_QueryPortShared();",
     "HSteamListenSocket Steam_NetworkingSockets_CreateListenSocketP2PNoOptions( int localVirtualPort );",
     "HSteamNetConnection Steam_NetworkingSockets_ConnectP2PSteamIDNoOptions( uint64_steamid steamID, int remoteVirtualPort );",
+    "void Steam_NetworkingSockets_EnableConnectionStatusCallbacks();",
+    "void Steam_NetworkingSockets_ClearConnectionStatusChangedEvents();",
+    "std::vector<std::string> Steam_NetworkingSockets_PollConnectionStatusChangedStrings( int maxEvents );",
     "int Steam_NetworkingSockets_SendMessageToConnectionString( HSteamNetConnection connection, const std::string & data, int sendFlags );",
     "std::vector<std::string> Steam_NetworkingSockets_ReceiveMessagesOnConnectionStrings( HSteamNetConnection connection, int maxMessages );",
     "std::vector<std::string> Steam_NetworkingSockets_ReceiveMessagesOnPollGroupStrings( HSteamNetPollGroup pollGroup, int maxMessages );",
@@ -76,6 +79,12 @@ GLOBAL_DECLARATIONS = [
     "int Steam_NetworkingSend_UnreliableNoDelay();",
     "int Steam_NetworkingSend_Reliable();",
     "int Steam_NetworkingSend_ReliableNoNagle();",
+    "int Steam_NetworkingConnectionState_None();",
+    "int Steam_NetworkingConnectionState_Connecting();",
+    "int Steam_NetworkingConnectionState_FindingRoute();",
+    "int Steam_NetworkingConnectionState_Connected();",
+    "int Steam_NetworkingConnectionState_ClosedByPeer();",
+    "int Steam_NetworkingConnectionState_ProblemDetectedLocally();",
     "int Steam_NetConnectionEnd_AppGeneric();",
     "int Steam_NetConnectionEnd_AppExceptionGeneric();",
     "SteamAPICall_t Steam_Lobby_RequestList();",
@@ -216,6 +225,66 @@ private:
 };
 
 LobbyAsyncState g_lobbyAsyncState;
+
+class NetworkingStatusChangedQueue
+{
+public:
+	void Register()
+	{
+		m_callback.Register( this, &NetworkingStatusChangedQueue::OnStatusChanged );
+	}
+
+	void Clear()
+	{
+		m_events.clear();
+	}
+
+	std::vector<std::string> PopEvents( int maxEvents )
+	{
+		std::vector<std::string> result;
+		if ( maxEvents <= 0 )
+		{
+			return result;
+		}
+
+		const size_t count = std::min( static_cast<size_t>( maxEvents ), m_events.size() );
+		result.reserve( count );
+		for ( size_t index = 0; index < count; ++index )
+		{
+			result.push_back( m_events[index] );
+		}
+		m_events.erase( m_events.begin(), m_events.begin() + static_cast<std::vector<std::string>::difference_type>( count ) );
+		return result;
+	}
+
+private:
+	void OnStatusChanged( SteamNetConnectionStatusChangedCallback_t *callback )
+	{
+		if ( !callback )
+		{
+			return;
+		}
+
+		const SteamNetConnectionInfo_t &info = callback->m_info;
+		std::string event;
+		event.reserve( 512 );
+		event += "connection=" + std::to_string( static_cast<uint32>( callback->m_hConn ) );
+		event += "\tlisten_socket=" + std::to_string( static_cast<uint32>( info.m_hListenSocket ) );
+		event += "\tremote_steam_id=" + std::to_string( info.m_identityRemote.GetSteamID64() );
+		event += "\told_state=" + std::to_string( static_cast<int>( callback->m_eOldState ) );
+		event += "\tstate=" + std::to_string( static_cast<int>( info.m_eState ) );
+		event += "\tend_reason=" + std::to_string( info.m_eEndReason );
+		event += "\tflags=" + std::to_string( info.m_nFlags );
+		event += "\tdescription=" + std::string( info.m_szConnectionDescription );
+		event += "\tend_debug=" + std::string( info.m_szEndDebug );
+		m_events.push_back( event );
+	}
+
+	CCallbackManual<NetworkingStatusChangedQueue, SteamNetConnectionStatusChangedCallback_t> m_callback;
+	std::vector<std::string> m_events;
+};
+
+NetworkingStatusChangedQueue g_networkingStatusChangedQueue;
 
 std::vector<std::string> ReceiveMessagesOnConnectionStrings( ISteamNetworkingSockets *sockets, HSteamNetConnection connection, int maxMessages )
 {
@@ -469,12 +538,14 @@ uint16 Steam_GameServer_QueryPortShared()
 
 HSteamListenSocket Steam_NetworkingSockets_CreateListenSocketP2PNoOptions( int localVirtualPort )
 {
+	g_networkingStatusChangedQueue.Register();
 	auto *sockets = SteamAPI_SteamNetworkingSockets_SteamAPI();
 	return sockets ? sockets->CreateListenSocketP2P( localVirtualPort, 0, nullptr ) : HSteamListenSocket{};
 }
 
 HSteamNetConnection Steam_NetworkingSockets_ConnectP2PSteamIDNoOptions( uint64_steamid steamID, int remoteVirtualPort )
 {
+	g_networkingStatusChangedQueue.Register();
 	auto *sockets = SteamAPI_SteamNetworkingSockets_SteamAPI();
 	if ( !sockets )
 	{
@@ -484,6 +555,21 @@ HSteamNetConnection Steam_NetworkingSockets_ConnectP2PSteamIDNoOptions( uint64_s
 	SteamNetworkingIdentity identity;
 	identity.SetSteamID64( steamID );
 	return sockets->ConnectP2P( identity, remoteVirtualPort, 0, nullptr );
+}
+
+void Steam_NetworkingSockets_EnableConnectionStatusCallbacks()
+{
+	g_networkingStatusChangedQueue.Register();
+}
+
+void Steam_NetworkingSockets_ClearConnectionStatusChangedEvents()
+{
+	g_networkingStatusChangedQueue.Clear();
+}
+
+std::vector<std::string> Steam_NetworkingSockets_PollConnectionStatusChangedStrings( int maxEvents )
+{
+	return g_networkingStatusChangedQueue.PopEvents( maxEvents );
 }
 
 int Steam_NetworkingSockets_SendMessageToConnectionString( HSteamNetConnection connection, const std::string & data, int sendFlags )
@@ -611,6 +697,36 @@ int Steam_NetworkingSend_Reliable()
 int Steam_NetworkingSend_ReliableNoNagle()
 {
 	return k_nSteamNetworkingSend_ReliableNoNagle;
+}
+
+int Steam_NetworkingConnectionState_None()
+{
+	return k_ESteamNetworkingConnectionState_None;
+}
+
+int Steam_NetworkingConnectionState_Connecting()
+{
+	return k_ESteamNetworkingConnectionState_Connecting;
+}
+
+int Steam_NetworkingConnectionState_FindingRoute()
+{
+	return k_ESteamNetworkingConnectionState_FindingRoute;
+}
+
+int Steam_NetworkingConnectionState_Connected()
+{
+	return k_ESteamNetworkingConnectionState_Connected;
+}
+
+int Steam_NetworkingConnectionState_ClosedByPeer()
+{
+	return k_ESteamNetworkingConnectionState_ClosedByPeer;
+}
+
+int Steam_NetworkingConnectionState_ProblemDetectedLocally()
+{
+	return k_ESteamNetworkingConnectionState_ProblemDetectedLocally;
 }
 
 int Steam_NetConnectionEnd_AppGeneric()
@@ -1002,6 +1118,7 @@ def generate(api: dict, output_dir: Path) -> None:
             [
                 "#pragma once",
                 "",
+                "#include <algorithm>",
                 "#include <string>",
                 "#include <vector>",
                 "",
