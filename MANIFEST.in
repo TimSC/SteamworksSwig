@@ -1,0 +1,5 @@
+include setup.py
+include tools/generate_swig_shim.py
+recursive-include python *.py
+recursive-include sdk/public/steam *.h *.json
+include sdk/redistributable_bin/linux64/libsteam_api.so
