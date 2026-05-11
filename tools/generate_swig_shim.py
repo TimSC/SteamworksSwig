@@ -28,16 +28,40 @@ GLOBAL_DECLARATIONS = [
     "bool Steam_IsSteamRunning();",
     "bool Steam_RestartAppIfNecessary( AppId_t appID );",
     "void Steam_ReleaseCurrentThreadMemory();",
+    "void Steam_WriteMiniDump( uint32 structuredExceptionCode, uint32 buildID );",
     "const char * Steam_GetSteamInstallPath();",
     "void Steam_SetTryCatchCallbacks( bool enabled );",
     "void Steam_SetMiniDumpComment( const char * message );",
+    "void Steam_ManualDispatch_Init();",
+    "void Steam_ManualDispatch_RunFrame( HSteamPipe pipe );",
+    "void Steam_ManualDispatch_FreeLastCallback( HSteamPipe pipe );",
+    "HSteamPipe Steam_GetHSteamPipe();",
+    "HSteamUser Steam_GetHSteamUser();",
     "int Steam_GetLastInitResult();",
     "const char * Steam_GetLastInitError();",
+    "bool Steam_GameServer_Init( uint32 ip, uint16 gamePort, uint16 queryPort, int serverMode, const char * versionString );",
+    "int Steam_GameServer_InitEx( uint32 ip, uint16 gamePort, uint16 queryPort, int serverMode, const char * versionString );",
+    "void Steam_GameServer_Shutdown();",
+    "void Steam_GameServer_RunCallbacks();",
+    "void Steam_GameServer_ReleaseCurrentThreadMemory();",
+    "bool Steam_GameServer_GlobalBSecure();",
+    "uint64 Steam_GameServer_GlobalGetSteamID();",
+    "HSteamPipe Steam_GameServer_GetHSteamPipe();",
+    "HSteamUser Steam_GameServer_GetHSteamUser();",
+    "int Steam_GameServer_GetLastInitResult();",
+    "const char * Steam_GameServer_GetLastInitError();",
+    "int Steam_ServerModeInvalid();",
+    "int Steam_ServerModeNoAuthentication();",
+    "int Steam_ServerModeAuthentication();",
+    "int Steam_ServerModeAuthenticationAndSecure();",
+    "uint16 Steam_GameServer_QueryPortShared();",
 ]
 GLOBAL_DEFINITIONS = r'''namespace
 {
 SteamErrMsg g_lastInitError = { 0 };
 int g_lastInitResult = 0;
+SteamErrMsg g_lastGameServerInitError = { 0 };
+int g_lastGameServerInitResult = 0;
 }
 
 bool Steam_Init()
@@ -84,6 +108,11 @@ void Steam_ReleaseCurrentThreadMemory()
 	SteamAPI_ReleaseCurrentThreadMemory();
 }
 
+void Steam_WriteMiniDump( uint32 structuredExceptionCode, uint32 buildID )
+{
+	SteamAPI_WriteMiniDump( structuredExceptionCode, nullptr, buildID );
+}
+
 const char * Steam_GetSteamInstallPath()
 {
 	return SteamAPI_GetSteamInstallPath();
@@ -99,6 +128,31 @@ void Steam_SetMiniDumpComment( const char * message )
 	SteamAPI_SetMiniDumpComment( message );
 }
 
+void Steam_ManualDispatch_Init()
+{
+	SteamAPI_ManualDispatch_Init();
+}
+
+void Steam_ManualDispatch_RunFrame( HSteamPipe pipe )
+{
+	SteamAPI_ManualDispatch_RunFrame( pipe );
+}
+
+void Steam_ManualDispatch_FreeLastCallback( HSteamPipe pipe )
+{
+	SteamAPI_ManualDispatch_FreeLastCallback( pipe );
+}
+
+HSteamPipe Steam_GetHSteamPipe()
+{
+	return SteamAPI_GetHSteamPipe();
+}
+
+HSteamUser Steam_GetHSteamUser()
+{
+	return SteamAPI_GetHSteamUser();
+}
+
 int Steam_GetLastInitResult()
 {
 	return g_lastInitResult;
@@ -107,6 +161,90 @@ int Steam_GetLastInitResult()
 const char * Steam_GetLastInitError()
 {
 	return g_lastInitError;
+}
+
+bool Steam_GameServer_Init( uint32 ip, uint16 gamePort, uint16 queryPort, int serverMode, const char * versionString )
+{
+	return SteamGameServer_Init( ip, gamePort, queryPort, static_cast<EServerMode>( serverMode ), versionString );
+}
+
+int Steam_GameServer_InitEx( uint32 ip, uint16 gamePort, uint16 queryPort, int serverMode, const char * versionString )
+{
+	g_lastGameServerInitError[0] = '\0';
+	g_lastGameServerInitResult = static_cast<int>(
+		SteamGameServer_InitEx( ip, gamePort, queryPort, static_cast<EServerMode>( serverMode ), versionString, &g_lastGameServerInitError )
+	);
+	return g_lastGameServerInitResult;
+}
+
+void Steam_GameServer_Shutdown()
+{
+	SteamGameServer_Shutdown();
+}
+
+void Steam_GameServer_RunCallbacks()
+{
+	SteamGameServer_RunCallbacks();
+}
+
+void Steam_GameServer_ReleaseCurrentThreadMemory()
+{
+	SteamGameServer_ReleaseCurrentThreadMemory();
+}
+
+bool Steam_GameServer_GlobalBSecure()
+{
+	return SteamGameServer_BSecure();
+}
+
+uint64 Steam_GameServer_GlobalGetSteamID()
+{
+	return SteamGameServer_GetSteamID();
+}
+
+HSteamPipe Steam_GameServer_GetHSteamPipe()
+{
+	return SteamGameServer_GetHSteamPipe();
+}
+
+HSteamUser Steam_GameServer_GetHSteamUser()
+{
+	return SteamGameServer_GetHSteamUser();
+}
+
+int Steam_GameServer_GetLastInitResult()
+{
+	return g_lastGameServerInitResult;
+}
+
+const char * Steam_GameServer_GetLastInitError()
+{
+	return g_lastGameServerInitError;
+}
+
+int Steam_ServerModeInvalid()
+{
+	return static_cast<int>( eServerModeInvalid );
+}
+
+int Steam_ServerModeNoAuthentication()
+{
+	return static_cast<int>( eServerModeNoAuthentication );
+}
+
+int Steam_ServerModeAuthentication()
+{
+	return static_cast<int>( eServerModeAuthentication );
+}
+
+int Steam_ServerModeAuthenticationAndSecure()
+{
+	return static_cast<int>( eServerModeAuthenticationAndSecure );
+}
+
+uint16 Steam_GameServer_QueryPortShared()
+{
+	return STEAMGAMESERVER_QUERY_PORT_SHARED;
 }'''
 CPP_KEYWORDS = {
     "alignas",
@@ -311,6 +449,7 @@ def generate(api: dict, output_dir: Path) -> None:
                 "#pragma once",
                 "",
                 '#include "steam/steam_api_flat.h"',
+                '#include "steam/steam_gameserver.h"',
                 "",
                 *GLOBAL_DECLARATIONS,
                 "",

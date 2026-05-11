@@ -88,10 +88,36 @@ steamworks.Steam_RunCallbacks()
 steamworks.Steam_IsSteamRunning()
 steamworks.Steam_RestartAppIfNecessary(app_id)
 steamworks.Steam_ReleaseCurrentThreadMemory()
+steamworks.Steam_WriteMiniDump(structured_exception_code, build_id)
 steamworks.Steam_GetSteamInstallPath()
 steamworks.Steam_SetTryCatchCallbacks(enabled)
 steamworks.Steam_SetMiniDumpComment(message)
+steamworks.Steam_ManualDispatch_Init()
+steamworks.Steam_ManualDispatch_RunFrame(pipe)
+steamworks.Steam_ManualDispatch_FreeLastCallback(pipe)
+steamworks.Steam_GetHSteamPipe()
+steamworks.Steam_GetHSteamUser()
+steamworks.Steam_GameServer_Init(ip, game_port, query_port, server_mode, version)
+steamworks.Steam_GameServer_InitEx(ip, game_port, query_port, server_mode, version)
+steamworks.Steam_GameServer_GetLastInitResult()
+steamworks.Steam_GameServer_GetLastInitError()
+steamworks.Steam_GameServer_Shutdown()
+steamworks.Steam_GameServer_RunCallbacks()
+steamworks.Steam_GameServer_ReleaseCurrentThreadMemory()
+steamworks.Steam_GameServer_GlobalBSecure()
+steamworks.Steam_GameServer_GlobalGetSteamID()
+steamworks.Steam_GameServer_GetHSteamPipe()
+steamworks.Steam_GameServer_GetHSteamUser()
+steamworks.Steam_ServerModeInvalid()
+steamworks.Steam_ServerModeNoAuthentication()
+steamworks.Steam_ServerModeAuthentication()
+steamworks.Steam_ServerModeAuthenticationAndSecure()
+steamworks.Steam_GameServer_QueryPortShared()
 ```
+
+Some global SDK functions still need explicit typemaps before they can be safely
+wrapped, notably callback-result APIs that take `CallbackMsg_t *`, arbitrary
+`void *` buffers, or callback function pointers.
 
 ## Regenerating
 
