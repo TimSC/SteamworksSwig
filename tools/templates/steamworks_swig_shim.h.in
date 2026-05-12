@@ -1,0 +1,114 @@
+#pragma once
+
+#include <algorithm>
+#include <string>
+#include <vector>
+
+#include "steam/steam_api_flat.h"
+#include "steam/steam_gameserver.h"
+
+bool Steam_Init();
+int Steam_InitEx();
+int Steam_InitFlat();
+void Steam_Shutdown();
+void Steam_RunCallbacks();
+bool Steam_IsSteamRunning();
+bool Steam_RestartAppIfNecessary( AppId_t appID );
+void Steam_ReleaseCurrentThreadMemory();
+void Steam_WriteMiniDump( uint32 structuredExceptionCode, uint32 buildID );
+const char * Steam_GetSteamInstallPath();
+void Steam_SetTryCatchCallbacks( bool enabled );
+void Steam_SetMiniDumpComment( const char * message );
+void Steam_ManualDispatch_Init();
+void Steam_ManualDispatch_RunFrame( HSteamPipe pipe );
+void Steam_ManualDispatch_FreeLastCallback( HSteamPipe pipe );
+HSteamPipe Steam_GetHSteamPipe();
+HSteamUser Steam_GetHSteamUser();
+int Steam_GetLastInitResult();
+const char * Steam_GetLastInitError();
+bool Steam_GameServer_Init( uint32 ip, uint16 gamePort, uint16 queryPort, int serverMode, const char * versionString );
+int Steam_GameServer_InitEx( uint32 ip, uint16 gamePort, uint16 queryPort, int serverMode, const char * versionString );
+void Steam_GameServer_Shutdown();
+void Steam_GameServer_RunCallbacks();
+void Steam_GameServer_ReleaseCurrentThreadMemory();
+bool Steam_GameServer_GlobalBSecure();
+uint64 Steam_GameServer_GlobalGetSteamID();
+HSteamPipe Steam_GameServer_GetHSteamPipe();
+HSteamUser Steam_GameServer_GetHSteamUser();
+int Steam_GameServer_GetLastInitResult();
+const char * Steam_GameServer_GetLastInitError();
+int Steam_ServerModeInvalid();
+int Steam_ServerModeNoAuthentication();
+int Steam_ServerModeAuthentication();
+int Steam_ServerModeAuthenticationAndSecure();
+uint16 Steam_GameServer_QueryPortShared();
+HSteamListenSocket Steam_NetworkingSockets_CreateListenSocketP2PNoOptions( int localVirtualPort );
+HSteamNetConnection Steam_NetworkingSockets_ConnectP2PSteamIDNoOptions( uint64_steamid steamID, int remoteVirtualPort );
+void Steam_NetworkingSockets_EnableConnectionStatusCallbacks();
+void Steam_NetworkingSockets_ClearConnectionStatusChangedEvents();
+std::vector<std::string> Steam_NetworkingSockets_PollConnectionStatusChangedStrings( int maxEvents );
+int Steam_NetworkingSockets_SendMessageToConnectionString( HSteamNetConnection connection, const std::string & data, int sendFlags );
+std::vector<std::string> Steam_NetworkingSockets_ReceiveMessagesOnConnectionStrings( HSteamNetConnection connection, int maxMessages );
+std::vector<std::string> Steam_NetworkingSockets_ReceiveMessagesOnPollGroupStrings( HSteamNetPollGroup pollGroup, int maxMessages );
+std::string Steam_NetworkingSockets_GetConnectionNameString( HSteamNetConnection connection );
+std::string Steam_NetworkingSockets_GetDetailedConnectionStatusString( HSteamNetConnection connection );
+HSteamListenSocket Steam_GameServerNetworkingSockets_CreateListenSocketP2PNoOptions( int localVirtualPort );
+HSteamNetPollGroup Steam_GameServerNetworkingSockets_CreatePollGroup();
+bool Steam_GameServerNetworkingSockets_DestroyPollGroup( HSteamNetPollGroup pollGroup );
+int Steam_GameServerNetworkingSockets_AcceptConnection( HSteamNetConnection connection );
+bool Steam_GameServerNetworkingSockets_CloseConnection( HSteamNetConnection connection, int reason, const char * debugMessage, bool enableLinger );
+bool Steam_GameServerNetworkingSockets_CloseListenSocket( HSteamListenSocket listenSocket );
+bool Steam_GameServerNetworkingSockets_SetConnectionPollGroup( HSteamNetConnection connection, HSteamNetPollGroup pollGroup );
+int Steam_GameServerNetworkingSockets_SendMessageToConnectionString( HSteamNetConnection connection, const std::string & data, int sendFlags );
+std::vector<std::string> Steam_GameServerNetworkingSockets_ReceiveMessagesOnConnectionStrings( HSteamNetConnection connection, int maxMessages );
+std::vector<std::string> Steam_GameServerNetworkingSockets_ReceiveMessagesOnPollGroupStrings( HSteamNetPollGroup pollGroup, int maxMessages );
+int Steam_NetworkingSend_Unreliable();
+int Steam_NetworkingSend_UnreliableNoDelay();
+int Steam_NetworkingSend_Reliable();
+int Steam_NetworkingSend_ReliableNoNagle();
+int Steam_NetworkingConnectionState_None();
+int Steam_NetworkingConnectionState_Connecting();
+int Steam_NetworkingConnectionState_FindingRoute();
+int Steam_NetworkingConnectionState_Connected();
+int Steam_NetworkingConnectionState_ClosedByPeer();
+int Steam_NetworkingConnectionState_ProblemDetectedLocally();
+int Steam_NetConnectionEnd_AppGeneric();
+int Steam_NetConnectionEnd_AppExceptionGeneric();
+SteamAPICall_t Steam_Lobby_RequestList();
+bool Steam_Lobby_IsListPending();
+bool Steam_Lobby_IsListComplete();
+bool Steam_Lobby_ListHadIOFailure();
+uint32 Steam_Lobby_GetListResultCount();
+uint64_steamid Steam_Lobby_GetListLobbyByIndex( int index );
+std::string Steam_Lobby_GetListLobbyNameByIndex( int index );
+std::vector<std::string> Steam_Lobby_GetDataEntries( uint64_steamid lobbyID );
+SteamAPICall_t Steam_Lobby_Create( int lobbyType, int maxMembers );
+bool Steam_Lobby_IsCreatePending();
+bool Steam_Lobby_IsCreateComplete();
+bool Steam_Lobby_CreateHadIOFailure();
+uint64_steamid Steam_Lobby_GetCreatedLobbyID();
+int Steam_Lobby_GetCreateResult();
+bool Steam_Lobby_CreateSucceeded();
+SteamAPICall_t Steam_Lobby_Join( uint64_steamid lobbyID );
+bool Steam_Lobby_IsJoinPending();
+bool Steam_Lobby_IsJoinComplete();
+bool Steam_Lobby_JoinHadIOFailure();
+uint64_steamid Steam_Lobby_GetJoinedLobbyID();
+uint32 Steam_Lobby_GetJoinResponse();
+bool Steam_Lobby_JoinSucceeded();
+int Steam_Lobby_ChatRoomEnterResponseSuccess();
+int Steam_FriendFlagImmediate();
+int Steam_FriendFlagOnGameServer();
+int Steam_FriendFlagAll();
+int Steam_Friends_GetFriendCountImmediate();
+uint64_steamid Steam_Friends_GetFriendByIndexImmediate( int index );
+bool Steam_Friends_GetFriendGamePlayedInfo( uint64_steamid friendID );
+uint64_gameid Steam_Friends_GetFriendGameID( uint64_steamid friendID );
+AppId_t Steam_Friends_GetFriendGameAppID( uint64_steamid friendID );
+uint32 Steam_Friends_GetFriendGameIP( uint64_steamid friendID );
+uint16 Steam_Friends_GetFriendGamePort( uint64_steamid friendID );
+uint16 Steam_Friends_GetFriendGameQueryPort( uint64_steamid friendID );
+uint64_steamid Steam_Friends_GetFriendGameLobbyID( uint64_steamid friendID );
+bool Steam_Friends_IsFriendInCurrentGame( uint64_steamid friendID );
+
+{{ generated_declarations }}
