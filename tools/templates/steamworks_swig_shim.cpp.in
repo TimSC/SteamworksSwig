@@ -219,6 +219,112 @@ private:
 
 NetworkingStatusChangedQueue g_networkingStatusChangedQueue;
 
+std::string EscapeEventField( const std::string &value )
+{
+	std::string escaped;
+	escaped.reserve( value.size() );
+	for ( char ch : value )
+	{
+		switch ( ch )
+		{
+		case '\\':
+			escaped += "\\\\";
+			break;
+		case '\t':
+			escaped += "\\t";
+			break;
+		case '\n':
+			escaped += "\\n";
+			break;
+		case '\r':
+			escaped += "\\r";
+			break;
+		default:
+			escaped += ch;
+			break;
+		}
+	}
+	return escaped;
+}
+
+class LobbyChatQueue
+{
+public:
+	void Register()
+	{
+		m_callback.Register( this, &LobbyChatQueue::OnLobbyChatMessage );
+	}
+
+	void Clear()
+	{
+		m_messages.clear();
+	}
+
+	std::vector<std::string> PopMessages( int maxMessages )
+	{
+		std::vector<std::string> result;
+		if ( maxMessages <= 0 )
+		{
+			return result;
+		}
+
+		const size_t count = std::min( static_cast<size_t>( maxMessages ), m_messages.size() );
+		result.reserve( count );
+		for ( size_t index = 0; index < count; ++index )
+		{
+			result.push_back( m_messages[index] );
+		}
+		m_messages.erase( m_messages.begin(), m_messages.begin() + static_cast<std::vector<std::string>::difference_type>( count ) );
+		return result;
+	}
+
+private:
+	void OnLobbyChatMessage( LobbyChatMsg_t *callback )
+	{
+		if ( !callback )
+		{
+			return;
+		}
+
+		ISteamMatchmaking *matchmaking = SteamMatchmaking();
+		if ( !matchmaking )
+		{
+			return;
+		}
+
+		CSteamID user;
+		EChatEntryType type = k_EChatEntryTypeInvalid;
+		char data[4096] = { 0 };
+		const int bytes = matchmaking->GetLobbyChatEntry(
+			CSteamID( callback->m_ulSteamIDLobby ),
+			callback->m_iChatID,
+			&user,
+			data,
+			sizeof( data ) - 1,
+			&type
+		);
+		if ( bytes < 0 )
+		{
+			return;
+		}
+		data[std::min( bytes, static_cast<int>( sizeof( data ) - 1 ) )] = '\0';
+
+		std::string message;
+		message.reserve( 256 + static_cast<size_t>( bytes ) );
+		message += "lobby=" + std::to_string( callback->m_ulSteamIDLobby );
+		message += "\tuser=" + std::to_string( user.ConvertToUint64() );
+		message += "\ttype=" + std::to_string( static_cast<int>( type ) );
+		message += "\tchat_id=" + std::to_string( callback->m_iChatID );
+		message += "\tmessage=" + EscapeEventField( std::string( data ) );
+		m_messages.push_back( message );
+	}
+
+	CCallbackManual<LobbyChatQueue, LobbyChatMsg_t> m_callback;
+	std::vector<std::string> m_messages;
+};
+
+LobbyChatQueue g_lobbyChatQueue;
+
 std::vector<std::string> ReceiveMessagesOnConnectionStrings( ISteamNetworkingSockets *sockets, HSteamNetConnection connection, int maxMessages )
 {
 	std::vector<std::string> result;
@@ -823,6 +929,31 @@ bool Steam_Lobby_JoinSucceeded()
 int Steam_Lobby_ChatRoomEnterResponseSuccess()
 {
 	return k_EChatRoomEnterResponseSuccess;
+}
+
+void Steam_Lobby_EnableChatCallbacks()
+{
+	g_lobbyChatQueue.Register();
+}
+
+void Steam_Lobby_ClearChatMessages()
+{
+	g_lobbyChatQueue.Clear();
+}
+
+bool Steam_Lobby_SendChatMessage( uint64_steamid lobbyID, const std::string & message )
+{
+	ISteamMatchmaking *matchmaking = SteamMatchmaking();
+	if ( !matchmaking || lobbyID == 0 )
+	{
+		return false;
+	}
+	return matchmaking->SendLobbyChatMsg( CSteamID( lobbyID ), message.c_str(), static_cast<int>( message.size() + 1 ) );
+}
+
+std::vector<std::string> Steam_Lobby_PollChatMessages( int maxMessages )
+{
+	return g_lobbyChatQueue.PopMessages( maxMessages );
 }
 
 int Steam_FriendFlagImmediate()
