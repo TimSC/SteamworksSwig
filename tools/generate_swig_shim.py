@@ -94,6 +94,14 @@ GLOBAL_DECLARATIONS = [
     "uint32 Steam_Lobby_GetListResultCount();",
     "uint64_steamid Steam_Lobby_GetListLobbyByIndex( int index );",
     "std::string Steam_Lobby_GetListLobbyNameByIndex( int index );",
+    "std::vector<std::string> Steam_Lobby_GetDataEntries( uint64_steamid lobbyID );",
+    "SteamAPICall_t Steam_Lobby_Create( int lobbyType, int maxMembers );",
+    "bool Steam_Lobby_IsCreatePending();",
+    "bool Steam_Lobby_IsCreateComplete();",
+    "bool Steam_Lobby_CreateHadIOFailure();",
+    "uint64_steamid Steam_Lobby_GetCreatedLobbyID();",
+    "int Steam_Lobby_GetCreateResult();",
+    "bool Steam_Lobby_CreateSucceeded();",
     "SteamAPICall_t Steam_Lobby_Join( uint64_steamid lobbyID );",
     "bool Steam_Lobby_IsJoinPending();",
     "bool Steam_Lobby_IsJoinComplete();",
@@ -183,10 +191,44 @@ public:
 		return call;
 	}
 
+	SteamAPICall_t Create( int lobbyType, int maxMembers )
+	{
+		m_createPending = false;
+		m_createComplete = false;
+		m_createIOFailure = false;
+		m_createdLobbyID = 0;
+		m_createResult = k_EResultNone;
+
+		ISteamMatchmaking *matchmaking = SteamMatchmaking();
+		if ( !matchmaking )
+		{
+			m_createComplete = true;
+			m_createIOFailure = true;
+			return k_uAPICallInvalid;
+		}
+
+		SteamAPICall_t call = matchmaking->CreateLobby( static_cast<ELobbyType>( lobbyType ), maxMembers );
+		if ( call == k_uAPICallInvalid )
+		{
+			m_createComplete = true;
+			m_createIOFailure = true;
+			return call;
+		}
+
+		m_createPending = true;
+		m_createCallResult.Set( call, this, &LobbyAsyncState::OnLobbyCreated );
+		return call;
+	}
+
 	bool IsListPending() const { return m_listPending; }
 	bool IsListComplete() const { return m_listComplete; }
 	bool ListHadIOFailure() const { return m_listIOFailure; }
 	uint32 GetLobbyCount() const { return m_lobbyCount; }
+	bool IsCreatePending() const { return m_createPending; }
+	bool IsCreateComplete() const { return m_createComplete; }
+	bool CreateHadIOFailure() const { return m_createIOFailure; }
+	uint64_steamid GetCreatedLobbyID() const { return m_createdLobbyID; }
+	int GetCreateResult() const { return static_cast<int>( m_createResult ); }
 	bool IsJoinPending() const { return m_joinPending; }
 	bool IsJoinComplete() const { return m_joinComplete; }
 	bool JoinHadIOFailure() const { return m_joinIOFailure; }
@@ -211,12 +253,27 @@ private:
 		m_joinResponse = result ? result->m_EChatRoomEnterResponse : 0;
 	}
 
+	void OnLobbyCreated( LobbyCreated_t *result, bool ioFailure )
+	{
+		m_createPending = false;
+		m_createComplete = true;
+		m_createIOFailure = ioFailure;
+		m_createResult = result ? result->m_eResult : k_EResultFail;
+		m_createdLobbyID = result ? result->m_ulSteamIDLobby : 0;
+	}
+
 	CCallResult<LobbyAsyncState, LobbyMatchList_t> m_listCallResult;
 	CCallResult<LobbyAsyncState, LobbyEnter_t> m_joinCallResult;
+	CCallResult<LobbyAsyncState, LobbyCreated_t> m_createCallResult;
 	bool m_listPending = false;
 	bool m_listComplete = false;
 	bool m_listIOFailure = false;
 	uint32 m_lobbyCount = 0;
+	bool m_createPending = false;
+	bool m_createComplete = false;
+	bool m_createIOFailure = false;
+	uint64_steamid m_createdLobbyID = 0;
+	EResult m_createResult = k_EResultNone;
 	bool m_joinPending = false;
 	bool m_joinComplete = false;
 	bool m_joinIOFailure = false;
@@ -788,6 +845,66 @@ std::string Steam_Lobby_GetListLobbyNameByIndex( int index )
 	}
 	const char *name = matchmaking->GetLobbyData( CSteamID( lobbyID ), "name" );
 	return name ? std::string( name ) : std::string();
+}
+
+std::vector<std::string> Steam_Lobby_GetDataEntries( uint64_steamid lobbyID )
+{
+	std::vector<std::string> result;
+	ISteamMatchmaking *matchmaking = SteamMatchmaking();
+	if ( !matchmaking || lobbyID == 0 )
+	{
+		return result;
+	}
+
+	const int count = matchmaking->GetLobbyDataCount( CSteamID( lobbyID ) );
+	result.reserve( static_cast<size_t>( std::max( count, 0 ) ) );
+	for ( int index = 0; index < count; ++index )
+	{
+		char key[256] = { 0 };
+		char value[4096] = { 0 };
+		if ( matchmaking->GetLobbyDataByIndex( CSteamID( lobbyID ), index, key, sizeof( key ), value, sizeof( value ) ) )
+		{
+			result.emplace_back( std::string( key ) + "=" + std::string( value ) );
+		}
+	}
+	return result;
+}
+
+SteamAPICall_t Steam_Lobby_Create( int lobbyType, int maxMembers )
+{
+	return g_lobbyAsyncState.Create( lobbyType, maxMembers );
+}
+
+bool Steam_Lobby_IsCreatePending()
+{
+	return g_lobbyAsyncState.IsCreatePending();
+}
+
+bool Steam_Lobby_IsCreateComplete()
+{
+	return g_lobbyAsyncState.IsCreateComplete();
+}
+
+bool Steam_Lobby_CreateHadIOFailure()
+{
+	return g_lobbyAsyncState.CreateHadIOFailure();
+}
+
+uint64_steamid Steam_Lobby_GetCreatedLobbyID()
+{
+	return g_lobbyAsyncState.GetCreatedLobbyID();
+}
+
+int Steam_Lobby_GetCreateResult()
+{
+	return g_lobbyAsyncState.GetCreateResult();
+}
+
+bool Steam_Lobby_CreateSucceeded()
+{
+	return g_lobbyAsyncState.IsCreateComplete()
+		&& !g_lobbyAsyncState.CreateHadIOFailure()
+		&& g_lobbyAsyncState.GetCreateResult() == k_EResultOK;
 }
 
 SteamAPICall_t Steam_Lobby_Join( uint64_steamid lobbyID )

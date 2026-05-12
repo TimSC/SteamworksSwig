@@ -297,6 +297,8 @@ You can try lobby listing with:
 python3 list_lobbies.py
 ```
 
+See [interactive.md](interactive.md) for the interactive lobby/P2P demo.
+
 Friend game/server state is exposed through a Python-friendly wrapper around
 `ISteamFriends::GetFriendGamePlayed`, which avoids the raw `FriendGameInfo_t *`
 output parameter:

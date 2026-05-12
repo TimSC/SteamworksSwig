@@ -151,6 +151,11 @@ setup(
     name="steamworks-swig",
     version="0.1.0",
     description="Generated Python bindings for the Steamworks SDK flat API",
+    license="BSD-3-Clause",
+    license_files=["LICENSE"],
+    classifiers=[
+        "License :: OSI Approved :: BSD License",
+    ],
     packages=["steamworks"],
     package_dir={"steamworks": "python/steamworks"},
     package_data={"steamworks": ["libsteam_api.so", "libsteam_api.dylib", "steam_api.dll", "steam_api64.dll"]},
