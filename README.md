@@ -161,52 +161,53 @@ with Python scalar/string types. Methods that require output structs, pointer
 buffers, callbacks, or interface pointers usually need explicit shim code.
 
 Current generated interface coverage is **620 of 913 SDK method overloads, or
-67.9%**. Those 620 SDK methods collapse to 614 unique Python function names
+67.9%**. Those 620 SDK methods collapse to **614 unique Python function names**
 where Valve exposes C++ overloads with the same method name.
 
 The generated module currently exports **750 unique `Steam_*` Python
-functions**. Of those, **136 are hand-written helper functions** for
-initialization, game-server initialization, networking payloads,
-`ISteamNetworkingSockets` connection-status polling, lobby async calls,
-matchmaking server pings, and friend game/server state. Those helpers are useful
-API surface, but they are not counted in the table below because they do not
-correspond one-to-one with JSON methods.
+functions**: **614 JSON-derived functions** plus **136 hand-written
+static/helper functions**. Helper functions cover initialization, manual
+dispatch, game-server initialization, networking payloads,
+`ISteamNetworkingSockets` connection-status and query helpers, lobby async
+calls, matchmaking server pings, and friend game/server state.
 
-| Steamworks group | SDK methods | Wrapped | Coverage |
-| --- | ---: | ---: | ---: |
-| `Apps` | 33 | 24 | 72.7% |
-| `Client` | 33 | 0 | 0.0% |
-| `Controller` | 34 | 29 | 85.3% |
-| `Friends` | 78 | 72 | 92.3% |
-| `GameServer` | 41 | 36 | 87.8% |
-| `GameServerStats` | 10 | 7 | 70.0% |
-| `HTMLSurface` | 37 | 30 | 81.1% |
-| `HTTP` | 25 | 15 | 60.0% |
-| `Input` | 48 | 42 | 87.5% |
-| `Inventory` | 38 | 15 | 39.5% |
-| `Matchmaking` | 38 | 33 | 86.8% |
-| `MatchmakingPingResponse` | 2 | 0 | 0.0% |
-| `MatchmakingPlayersResponse` | 3 | 0 | 0.0% |
-| `MatchmakingRulesResponse` | 3 | 0 | 0.0% |
-| `MatchmakingServerListResponse` | 3 | 0 | 0.0% |
-| `MatchmakingServers` | 17 | 7 | 41.2% |
-| `Music` | 9 | 9 | 100.0% |
-| `Networking` | 22 | 11 | 50.0% |
-| `NetworkingFakeUDPPort` | 4 | 0 | 0.0% |
-| `NetworkingMessages` | 6 | 0 | 0.0% |
-| `NetworkingSockets` | 47 | 15 | 31.9% |
-| `NetworkingUtils` | 41 | 21 | 51.2% |
-| `ParentalSettings` | 6 | 6 | 100.0% |
-| `Parties` | 12 | 7 | 58.3% |
-| `RemotePlay` | 20 | 17 | 85.0% |
-| `RemoteStorage` | 59 | 43 | 72.9% |
-| `Screenshots` | 9 | 8 | 88.9% |
-| `Timeline` | 18 | 18 | 100.0% |
-| `UGC` | 99 | 74 | 74.7% |
-| `User` | 33 | 24 | 72.7% |
-| `UserStats` | 44 | 24 | 54.5% |
-| `Utils` | 37 | 31 | 83.8% |
-| `Video` | 4 | 2 | 50.0% |
+| Steamworks group | JSON SDK methods | JSON wrapped | JSON coverage | JSON Python funcs | Static/helper funcs | Total Python funcs |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `Global/static` | - | - | - | 0 | 31 | 31 |
+| `Apps` | 33 | 24 | 72.7% | 24 | 0 | 24 |
+| `Client` | 33 | 0 | 0.0% | 0 | 0 | 0 |
+| `Controller` | 34 | 29 | 85.3% | 29 | 0 | 29 |
+| `Friends` | 78 | 72 | 92.3% | 72 | 13 | 85 |
+| `GameServer` | 41 | 36 | 87.8% | 36 | 16 | 52 |
+| `GameServerStats` | 10 | 7 | 70.0% | 6 | 0 | 6 |
+| `HTMLSurface` | 37 | 30 | 81.1% | 30 | 0 | 30 |
+| `HTTP` | 25 | 15 | 60.0% | 15 | 0 | 15 |
+| `Input` | 48 | 42 | 87.5% | 42 | 0 | 42 |
+| `Inventory` | 38 | 15 | 39.5% | 12 | 0 | 12 |
+| `Matchmaking` | 38 | 33 | 86.8% | 33 | 27 | 60 |
+| `MatchmakingPingResponse` | 2 | 0 | 0.0% | 0 | 0 | 0 |
+| `MatchmakingPlayersResponse` | 3 | 0 | 0.0% | 0 | 0 | 0 |
+| `MatchmakingRulesResponse` | 3 | 0 | 0.0% | 0 | 0 | 0 |
+| `MatchmakingServerListResponse` | 3 | 0 | 0.0% | 0 | 0 | 0 |
+| `MatchmakingServers` | 17 | 7 | 41.2% | 7 | 7 | 14 |
+| `Music` | 9 | 9 | 100.0% | 9 | 0 | 9 |
+| `Networking` | 22 | 11 | 50.0% | 11 | 0 | 11 |
+| `NetworkingFakeUDPPort` | 4 | 0 | 0.0% | 0 | 0 | 0 |
+| `NetworkingMessages` | 6 | 0 | 0.0% | 0 | 0 | 0 |
+| `NetworkingSockets` | 47 | 15 | 31.9% | 15 | 42 | 57 |
+| `NetworkingUtils` | 41 | 21 | 51.2% | 21 | 0 | 21 |
+| `ParentalSettings` | 6 | 6 | 100.0% | 6 | 0 | 6 |
+| `Parties` | 12 | 7 | 58.3% | 7 | 0 | 7 |
+| `RemotePlay` | 20 | 17 | 85.0% | 17 | 0 | 17 |
+| `RemoteStorage` | 59 | 43 | 72.9% | 43 | 0 | 43 |
+| `Screenshots` | 9 | 8 | 88.9% | 8 | 0 | 8 |
+| `Timeline` | 18 | 18 | 100.0% | 18 | 0 | 18 |
+| `UGC` | 99 | 74 | 74.7% | 73 | 0 | 73 |
+| `User` | 33 | 24 | 72.7% | 24 | 0 | 24 |
+| `UserStats` | 44 | 24 | 54.5% | 23 | 0 | 23 |
+| `Utils` | 37 | 31 | 83.8% | 31 | 0 | 31 |
+| `Video` | 4 | 2 | 50.0% | 2 | 0 | 2 |
+| **Total** | **913** | **620** | **67.9%** | **614** | **136** | **750** |
 
 ## SpaceWar Server, Lobby, And Networking
 
