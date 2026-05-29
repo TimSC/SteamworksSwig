@@ -130,6 +130,13 @@ steamworks.Steam_ServerModeNoAuthentication()
 steamworks.Steam_ServerModeAuthentication()
 steamworks.Steam_ServerModeAuthenticationAndSecure()
 steamworks.Steam_GameServer_QueryPortShared()
+steamworks.Steam_MatchmakingServers_PingServer(ip, port)
+steamworks.Steam_MatchmakingServers_IsPingPending()
+steamworks.Steam_MatchmakingServers_IsPingComplete()
+steamworks.Steam_MatchmakingServers_PingFailed()
+steamworks.Steam_MatchmakingServers_PingSucceeded()
+steamworks.Steam_MatchmakingServers_GetPingServer()
+steamworks.Steam_MatchmakingServers_ClearPingResult()
 ```
 
 Some global SDK functions still need explicit typemaps before they can be safely
@@ -147,13 +154,13 @@ Current generated interface coverage is **620 of 913 SDK method overloads, or
 67.9%**. Those 620 SDK methods collapse to 614 unique Python function names
 where Valve exposes C++ overloads with the same method name.
 
-The generated module currently exports **709 unique `Steam_*` Python
-functions**. Of those, **95 are hand-written helper functions** for
+The generated module currently exports **740 unique `Steam_*` Python
+functions**. Of those, **126 are hand-written helper functions** for
 initialization, game-server initialization, networking payloads,
-`ISteamNetworkingSockets` connection-status polling, lobby async calls, and
-friend game/server state. Those helpers are useful API surface, but they are not
-counted in the table below because they do not correspond one-to-one with JSON
-methods.
+`ISteamNetworkingSockets` connection-status polling, lobby async calls,
+matchmaking server pings, and friend game/server state. Those helpers are useful
+API surface, but they are not counted in the table below because they do not
+correspond one-to-one with JSON methods.
 
 | Steamworks group | SDK methods | Wrapped | Coverage |
 | --- | ---: | ---: | ---: |
@@ -259,6 +266,28 @@ while steamworks.Steam_ManualDispatch_GetNextCallback(pipe):
 Manual dispatch replaces `Steam_RunCallbacks()` and
 `Steam_GameServer_RunCallbacks()` for code using that pipe. Do not mix it with
 the higher-level callback shims in the same callback flow.
+
+Individual server pings are wrapped with a small polling shim around
+`ISteamMatchmakingPingResponse`:
+
+```python
+query = steamworks.Steam_MatchmakingServers_PingServer(ip, query_port)
+while steamworks.Steam_MatchmakingServers_IsPingPending():
+    steamworks.Steam_RunCallbacks()
+
+if steamworks.Steam_MatchmakingServers_PingSucceeded():
+    fields = dict(
+        part.split("=", 1)
+        for part in steamworks.Steam_MatchmakingServers_GetPingServer().split("\t")
+    )
+    print(fields["name"], fields["ping"], fields["players"], fields["max_players"])
+else:
+    print("Server failed to respond")
+```
+
+The ping result is returned as tab-separated `key=value` fields, matching the
+other event shims. `Steam_MatchmakingServers_ClearPingResult()` resets the
+single stored result before starting another ping.
 
 The networking-sockets helpers add Python-friendly overloads for the pointer-heavy
 payload methods used by the example:

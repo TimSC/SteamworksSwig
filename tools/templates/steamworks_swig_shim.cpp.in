@@ -332,6 +332,118 @@ private:
 
 LobbyChatQueue g_lobbyChatQueue;
 
+std::string SerializeGameServerItem( const gameserveritem_t &server )
+{
+	std::string result;
+	result.reserve( 1024 );
+	result += "name=" + EscapeEventField( server.GetName() );
+	result += "\tconnection_address=" + EscapeEventField( server.m_NetAdr.GetConnectionAddressString() );
+	result += "\tquery_address=" + EscapeEventField( server.m_NetAdr.GetQueryAddressString() );
+	result += "\tip=" + std::to_string( server.m_NetAdr.GetIP() );
+	result += "\tconnection_port=" + std::to_string( server.m_NetAdr.GetConnectionPort() );
+	result += "\tquery_port=" + std::to_string( server.m_NetAdr.GetQueryPort() );
+	result += "\tping=" + std::to_string( server.m_nPing );
+	result += "\thad_successful_response=" + std::to_string( server.m_bHadSuccessfulResponse ? 1 : 0 );
+	result += "\tdo_not_refresh=" + std::to_string( server.m_bDoNotRefresh ? 1 : 0 );
+	result += "\tgame_dir=" + EscapeEventField( server.m_szGameDir );
+	result += "\tmap=" + EscapeEventField( server.m_szMap );
+	result += "\tgame_description=" + EscapeEventField( server.m_szGameDescription );
+	result += "\tapp_id=" + std::to_string( server.m_nAppID );
+	result += "\tplayers=" + std::to_string( server.m_nPlayers );
+	result += "\tmax_players=" + std::to_string( server.m_nMaxPlayers );
+	result += "\tbot_players=" + std::to_string( server.m_nBotPlayers );
+	result += "\tpassword=" + std::to_string( server.m_bPassword ? 1 : 0 );
+	result += "\tsecure=" + std::to_string( server.m_bSecure ? 1 : 0 );
+	result += "\ttime_last_played=" + std::to_string( server.m_ulTimeLastPlayed );
+	result += "\tserver_version=" + std::to_string( server.m_nServerVersion );
+	result += "\tgame_tags=" + EscapeEventField( server.m_szGameTags );
+	result += "\tsteam_id=" + std::to_string( server.m_steamID.ConvertToUint64() );
+	return result;
+}
+
+class MatchmakingPingResponse : public ISteamMatchmakingPingResponse
+{
+public:
+	HServerQuery PingServer( uint32 ip, uint16 port )
+	{
+		Clear();
+
+		ISteamMatchmakingServers *servers = SteamMatchmakingServers();
+		if ( !servers )
+		{
+			m_complete = true;
+			m_failed = true;
+			return HSERVERQUERY_INVALID;
+		}
+
+		m_query = servers->PingServer( ip, port, this );
+		if ( m_query == HSERVERQUERY_INVALID )
+		{
+			m_complete = true;
+			m_failed = true;
+			return m_query;
+		}
+
+		m_pending = true;
+		return m_query;
+	}
+
+	void ServerResponded( gameserveritem_t &server ) override
+	{
+		m_pending = false;
+		m_complete = true;
+		m_failed = false;
+		m_server = SerializeGameServerItem( server );
+	}
+
+	void ServerFailedToRespond() override
+	{
+		m_pending = false;
+		m_complete = true;
+		m_failed = true;
+		m_server.clear();
+	}
+
+	bool IsPending() const { return m_pending; }
+	bool IsComplete() const { return m_complete; }
+	bool Failed() const { return m_complete && m_failed; }
+	bool Succeeded() const { return m_complete && !m_failed; }
+	std::string GetServer() const { return m_server; }
+
+	void Clear()
+	{
+		CancelPendingQuery();
+		m_query = HSERVERQUERY_INVALID;
+		m_pending = false;
+		m_complete = false;
+		m_failed = false;
+		m_server.clear();
+	}
+
+private:
+	void CancelPendingQuery()
+	{
+		if ( !m_pending || m_query == HSERVERQUERY_INVALID )
+		{
+			return;
+		}
+
+		ISteamMatchmakingServers *servers = SteamMatchmakingServers();
+		if ( servers )
+		{
+			servers->CancelServerQuery( m_query );
+		}
+	}
+
+	HServerQuery m_query = HSERVERQUERY_INVALID;
+	bool m_pending = false;
+	bool m_complete = false;
+	bool m_failed = false;
+	std::string m_server;
+};
+
+MatchmakingPingResponse g_matchmakingPingResponse;
+
 std::vector<std::string> ReceiveMessagesOnConnectionStrings( ISteamNetworkingSockets *sockets, HSteamNetConnection connection, int maxMessages )
 {
 	std::vector<std::string> result;
@@ -1092,6 +1204,41 @@ bool Steam_Lobby_SendChatMessage( uint64_steamid lobbyID, const std::string & me
 std::vector<std::string> Steam_Lobby_PollChatMessages( int maxMessages )
 {
 	return g_lobbyChatQueue.PopMessages( maxMessages );
+}
+
+HServerQuery Steam_MatchmakingServers_PingServer( uint32 ip, uint16 port )
+{
+	return g_matchmakingPingResponse.PingServer( ip, port );
+}
+
+bool Steam_MatchmakingServers_IsPingPending()
+{
+	return g_matchmakingPingResponse.IsPending();
+}
+
+bool Steam_MatchmakingServers_IsPingComplete()
+{
+	return g_matchmakingPingResponse.IsComplete();
+}
+
+bool Steam_MatchmakingServers_PingFailed()
+{
+	return g_matchmakingPingResponse.Failed();
+}
+
+bool Steam_MatchmakingServers_PingSucceeded()
+{
+	return g_matchmakingPingResponse.Succeeded();
+}
+
+std::string Steam_MatchmakingServers_GetPingServer()
+{
+	return g_matchmakingPingResponse.GetServer();
+}
+
+void Steam_MatchmakingServers_ClearPingResult()
+{
+	g_matchmakingPingResponse.Clear();
 }
 
 int Steam_FriendFlagImmediate()
