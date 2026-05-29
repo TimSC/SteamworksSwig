@@ -130,6 +130,16 @@ steamworks.Steam_ServerModeNoAuthentication()
 steamworks.Steam_ServerModeAuthentication()
 steamworks.Steam_ServerModeAuthenticationAndSecure()
 steamworks.Steam_GameServer_QueryPortShared()
+steamworks.Steam_NetworkingSockets_CreateListenSocketIPStringNoOptions(address)
+steamworks.Steam_NetworkingSockets_ConnectByIPAddressStringNoOptions(address)
+steamworks.Steam_NetworkingSockets_GetConnectionInfoString(connection)
+steamworks.Steam_NetworkingSockets_GetConnectionRealTimeStatusString(connection)
+steamworks.Steam_NetworkingSockets_GetListenSocketAddressString(listen_socket)
+steamworks.Steam_NetworkingSockets_GetIdentityString()
+steamworks.Steam_NetworkingSockets_GetAuthenticationStatusString()
+steamworks.Steam_NetworkingSockets_GetFakeIPString(first_port_index)
+steamworks.Steam_NetworkingSockets_CreateListenSocketP2PFakeIPNoOptions(fake_port_index)
+steamworks.Steam_NetworkingSockets_GetRemoteFakeIPForConnectionString(connection)
 steamworks.Steam_MatchmakingServers_PingServer(ip, port)
 steamworks.Steam_MatchmakingServers_IsPingPending()
 steamworks.Steam_MatchmakingServers_IsPingComplete()
@@ -154,8 +164,8 @@ Current generated interface coverage is **620 of 913 SDK method overloads, or
 67.9%**. Those 620 SDK methods collapse to 614 unique Python function names
 where Valve exposes C++ overloads with the same method name.
 
-The generated module currently exports **740 unique `Steam_*` Python
-functions**. Of those, **126 are hand-written helper functions** for
+The generated module currently exports **750 unique `Steam_*` Python
+functions**. Of those, **136 are hand-written helper functions** for
 initialization, game-server initialization, networking payloads,
 `ISteamNetworkingSockets` connection-status polling, lobby async calls,
 matchmaking server pings, and friend game/server state. Those helpers are useful

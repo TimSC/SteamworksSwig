@@ -332,6 +332,88 @@ private:
 
 LobbyChatQueue g_lobbyChatQueue;
 
+std::string SerializeNetworkingIdentity( const SteamNetworkingIdentity &identity )
+{
+	char identityString[SteamNetworkingIdentity::k_cchMaxString] = { 0 };
+	identity.ToString( identityString, sizeof( identityString ) );
+
+	std::string result;
+	result.reserve( 192 );
+	result += "identity=" + EscapeEventField( identityString );
+	result += "\ttype=" + std::to_string( static_cast<int>( identity.m_eType ) );
+	result += "\tsteam_id=" + std::to_string( identity.GetSteamID64() );
+	result += "\tipv4=" + std::to_string( identity.GetIPv4() );
+	result += "\tfake_ip_type=" + std::to_string( static_cast<int>( identity.GetFakeIPType() ) );
+	result += "\tis_fake_ip=" + std::to_string( identity.IsFakeIP() ? 1 : 0 );
+	result += "\tis_local_host=" + std::to_string( identity.IsLocalHost() ? 1 : 0 );
+	return result;
+}
+
+std::string SerializeNetworkingIPAddr( const SteamNetworkingIPAddr &address )
+{
+	char addressString[SteamNetworkingIPAddr::k_cchMaxString] = { 0 };
+	address.ToString( addressString, sizeof( addressString ), true );
+
+	std::string result;
+	result.reserve( 160 );
+	result += "address=" + EscapeEventField( addressString );
+	result += "\tipv4=" + std::to_string( address.GetIPv4() );
+	result += "\tport=" + std::to_string( address.m_port );
+	result += "\tis_ipv4=" + std::to_string( address.IsIPv4() ? 1 : 0 );
+	result += "\tis_local_host=" + std::to_string( address.IsLocalHost() ? 1 : 0 );
+	result += "\tfake_ip_type=" + std::to_string( static_cast<int>( address.GetFakeIPType() ) );
+	result += "\tis_fake_ip=" + std::to_string( address.IsFakeIP() ? 1 : 0 );
+	return result;
+}
+
+std::string SerializeNetworkingIPAddrFields( const SteamNetworkingIPAddr &address, const char *prefix )
+{
+	char addressString[SteamNetworkingIPAddr::k_cchMaxString] = { 0 };
+	address.ToString( addressString, sizeof( addressString ), true );
+
+	std::string result;
+	result.reserve( 192 );
+	result += prefix;
+	result += "address=" + EscapeEventField( addressString );
+	result += "\t";
+	result += prefix;
+	result += "ipv4=" + std::to_string( address.GetIPv4() );
+	result += "\t";
+	result += prefix;
+	result += "port=" + std::to_string( address.m_port );
+	result += "\t";
+	result += prefix;
+	result += "is_ipv4=" + std::to_string( address.IsIPv4() ? 1 : 0 );
+	result += "\t";
+	result += prefix;
+	result += "is_local_host=" + std::to_string( address.IsLocalHost() ? 1 : 0 );
+	result += "\t";
+	result += prefix;
+	result += "fake_ip_type=" + std::to_string( static_cast<int>( address.GetFakeIPType() ) );
+	result += "\t";
+	result += prefix;
+	result += "is_fake_ip=" + std::to_string( address.IsFakeIP() ? 1 : 0 );
+	return result;
+}
+
+std::string SerializeConnectionInfo( const SteamNetConnectionInfo_t &info )
+{
+	std::string result;
+	result.reserve( 1024 );
+	result += SerializeNetworkingIdentity( info.m_identityRemote );
+	result += "\tuser_data=" + std::to_string( info.m_nUserData );
+	result += "\tlisten_socket=" + std::to_string( static_cast<uint32>( info.m_hListenSocket ) );
+	result += "\t" + SerializeNetworkingIPAddrFields( info.m_addrRemote, "remote_" );
+	result += "\tremote_pop=" + std::to_string( info.m_idPOPRemote );
+	result += "\trelay_pop=" + std::to_string( info.m_idPOPRelay );
+	result += "\tstate=" + std::to_string( static_cast<int>( info.m_eState ) );
+	result += "\tend_reason=" + std::to_string( info.m_eEndReason );
+	result += "\tend_debug=" + EscapeEventField( info.m_szEndDebug );
+	result += "\tdescription=" + EscapeEventField( info.m_szConnectionDescription );
+	result += "\tflags=" + std::to_string( info.m_nFlags );
+	return result;
+}
+
 std::string SerializeGameServerItem( const gameserveritem_t &server )
 {
 	std::string result;
@@ -825,6 +907,42 @@ uint16 Steam_GameServer_QueryPortShared()
 	return STEAMGAMESERVER_QUERY_PORT_SHARED;
 }
 
+HSteamListenSocket Steam_NetworkingSockets_CreateListenSocketIPStringNoOptions( const char * address )
+{
+	g_networkingStatusChangedQueue.Register();
+	auto *sockets = SteamAPI_SteamNetworkingSockets_SteamAPI();
+	if ( !sockets || !address )
+	{
+		return HSteamListenSocket{};
+	}
+
+	SteamNetworkingIPAddr parsedAddress;
+	if ( !parsedAddress.ParseString( address ) )
+	{
+		return HSteamListenSocket{};
+	}
+
+	return sockets->CreateListenSocketIP( parsedAddress, 0, nullptr );
+}
+
+HSteamNetConnection Steam_NetworkingSockets_ConnectByIPAddressStringNoOptions( const char * address )
+{
+	g_networkingStatusChangedQueue.Register();
+	auto *sockets = SteamAPI_SteamNetworkingSockets_SteamAPI();
+	if ( !sockets || !address )
+	{
+		return HSteamNetConnection{};
+	}
+
+	SteamNetworkingIPAddr parsedAddress;
+	if ( !parsedAddress.ParseString( address ) )
+	{
+		return HSteamNetConnection{};
+	}
+
+	return sockets->ConnectByIPAddress( parsedAddress, 0, nullptr );
+}
+
 HSteamListenSocket Steam_NetworkingSockets_CreateListenSocketP2PNoOptions( int localVirtualPort )
 {
 	g_networkingStatusChangedQueue.Register();
@@ -893,6 +1011,49 @@ std::string Steam_NetworkingSockets_GetConnectionNameString( HSteamNetConnection
 	return sockets->GetConnectionName( connection, buffer, sizeof( buffer ) ) ? std::string( buffer ) : std::string();
 }
 
+std::string Steam_NetworkingSockets_GetConnectionInfoString( HSteamNetConnection connection )
+{
+	auto *sockets = SteamAPI_SteamNetworkingSockets_SteamAPI();
+	if ( !sockets )
+	{
+		return {};
+	}
+
+	SteamNetConnectionInfo_t info = {};
+	return sockets->GetConnectionInfo( connection, &info ) ? SerializeConnectionInfo( info ) : std::string();
+}
+
+std::string Steam_NetworkingSockets_GetConnectionRealTimeStatusString( HSteamNetConnection connection )
+{
+	auto *sockets = SteamAPI_SteamNetworkingSockets_SteamAPI();
+	if ( !sockets )
+	{
+		return {};
+	}
+
+	SteamNetConnectionRealTimeStatus_t status = {};
+	const EResult result = sockets->GetConnectionRealTimeStatus( connection, &status, 0, nullptr );
+
+	std::string serialized;
+	serialized.reserve( 512 );
+	serialized += "result=" + std::to_string( static_cast<int>( result ) );
+	serialized += "\tstate=" + std::to_string( static_cast<int>( status.m_eState ) );
+	serialized += "\tping=" + std::to_string( status.m_nPing );
+	serialized += "\tconnection_quality_local=" + std::to_string( status.m_flConnectionQualityLocal );
+	serialized += "\tconnection_quality_remote=" + std::to_string( status.m_flConnectionQualityRemote );
+	serialized += "\tout_packets_per_sec=" + std::to_string( status.m_flOutPacketsPerSec );
+	serialized += "\tout_bytes_per_sec=" + std::to_string( status.m_flOutBytesPerSec );
+	serialized += "\tin_packets_per_sec=" + std::to_string( status.m_flInPacketsPerSec );
+	serialized += "\tin_bytes_per_sec=" + std::to_string( status.m_flInBytesPerSec );
+	serialized += "\tsend_rate_bytes_per_sec=" + std::to_string( status.m_nSendRateBytesPerSecond );
+	serialized += "\tpending_unreliable=" + std::to_string( status.m_cbPendingUnreliable );
+	serialized += "\tpending_reliable=" + std::to_string( status.m_cbPendingReliable );
+	serialized += "\tsent_unacked_reliable=" + std::to_string( status.m_cbSentUnackedReliable );
+	serialized += "\tqueue_time_usec=" + std::to_string( status.m_usecQueueTime );
+	serialized += "\tmax_jitter_usec=" + std::to_string( status.m_usecMaxJitter );
+	return serialized;
+}
+
 std::string Steam_NetworkingSockets_GetDetailedConnectionStatusString( HSteamNetConnection connection )
 {
 	auto *sockets = SteamAPI_SteamNetworkingSockets_SteamAPI();
@@ -904,6 +1065,100 @@ std::string Steam_NetworkingSockets_GetDetailedConnectionStatusString( HSteamNet
 	char buffer[4096] = { 0 };
 	const int result = sockets->GetDetailedConnectionStatus( connection, buffer, sizeof( buffer ) );
 	return result >= 0 ? std::string( buffer ) : std::string();
+}
+
+std::string Steam_NetworkingSockets_GetListenSocketAddressString( HSteamListenSocket listenSocket )
+{
+	auto *sockets = SteamAPI_SteamNetworkingSockets_SteamAPI();
+	if ( !sockets )
+	{
+		return {};
+	}
+
+	SteamNetworkingIPAddr address = {};
+	return sockets->GetListenSocketAddress( listenSocket, &address ) ? SerializeNetworkingIPAddr( address ) : std::string();
+}
+
+std::string Steam_NetworkingSockets_GetIdentityString()
+{
+	auto *sockets = SteamAPI_SteamNetworkingSockets_SteamAPI();
+	if ( !sockets )
+	{
+		return {};
+	}
+
+	SteamNetworkingIdentity identity;
+	identity.Clear();
+	return sockets->GetIdentity( &identity ) ? SerializeNetworkingIdentity( identity ) : std::string();
+}
+
+std::string Steam_NetworkingSockets_GetAuthenticationStatusString()
+{
+	auto *sockets = SteamAPI_SteamNetworkingSockets_SteamAPI();
+	if ( !sockets )
+	{
+		return {};
+	}
+
+	SteamNetAuthenticationStatus_t status = {};
+	const ESteamNetworkingAvailability availability = sockets->GetAuthenticationStatus( &status );
+
+	std::string serialized;
+	serialized.reserve( 384 );
+	serialized += "availability=" + std::to_string( static_cast<int>( availability ) );
+	serialized += "\tstatus_availability=" + std::to_string( static_cast<int>( status.m_eAvail ) );
+	serialized += "\tdebug=" + EscapeEventField( status.m_debugMsg );
+	return serialized;
+}
+
+std::string Steam_NetworkingSockets_GetFakeIPString( int firstPortIndex )
+{
+	auto *sockets = SteamAPI_SteamNetworkingSockets_SteamAPI();
+	if ( !sockets )
+	{
+		return {};
+	}
+
+	SteamNetworkingFakeIPResult_t info = {};
+	sockets->GetFakeIP( firstPortIndex, &info );
+
+	std::string serialized;
+	serialized.reserve( 384 );
+	serialized += "result=" + std::to_string( static_cast<int>( info.m_eResult ) );
+	serialized += "\t" + SerializeNetworkingIdentity( info.m_identity );
+	serialized += "\tip=" + std::to_string( info.m_unIP );
+	for ( int index = 0; index < SteamNetworkingFakeIPResult_t::k_nMaxReturnPorts; ++index )
+	{
+		serialized += "\tport";
+		serialized += std::to_string( index );
+		serialized += "=";
+		serialized += std::to_string( info.m_unPorts[index] );
+	}
+	return serialized;
+}
+
+HSteamListenSocket Steam_NetworkingSockets_CreateListenSocketP2PFakeIPNoOptions( int fakePortIndex )
+{
+	g_networkingStatusChangedQueue.Register();
+	auto *sockets = SteamAPI_SteamNetworkingSockets_SteamAPI();
+	return sockets ? sockets->CreateListenSocketP2PFakeIP( fakePortIndex, 0, nullptr ) : HSteamListenSocket{};
+}
+
+std::string Steam_NetworkingSockets_GetRemoteFakeIPForConnectionString( HSteamNetConnection connection )
+{
+	auto *sockets = SteamAPI_SteamNetworkingSockets_SteamAPI();
+	if ( !sockets )
+	{
+		return {};
+	}
+
+	SteamNetworkingIPAddr address = {};
+	const EResult result = sockets->GetRemoteFakeIPForConnection( connection, &address );
+	std::string serialized;
+	serialized.reserve( 256 );
+	serialized += "result=" + std::to_string( static_cast<int>( result ) );
+	serialized += "\t" + SerializeNetworkingIPAddr( address );
+	return serialized;
 }
 
 HSteamListenSocket Steam_GameServerNetworkingSockets_CreateListenSocketP2PNoOptions( int localVirtualPort )

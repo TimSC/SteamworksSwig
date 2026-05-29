@@ -6,6 +6,7 @@
 
 #include "steam/steam_api_flat.h"
 #include "steam/steam_gameserver.h"
+#include "steam/steamnetworkingfakeip.h"
 
 bool Steam_Init();
 int Steam_InitEx();
@@ -54,6 +55,8 @@ int Steam_ServerModeNoAuthentication();
 int Steam_ServerModeAuthentication();
 int Steam_ServerModeAuthenticationAndSecure();
 uint16 Steam_GameServer_QueryPortShared();
+HSteamListenSocket Steam_NetworkingSockets_CreateListenSocketIPStringNoOptions( const char * address );
+HSteamNetConnection Steam_NetworkingSockets_ConnectByIPAddressStringNoOptions( const char * address );
 HSteamListenSocket Steam_NetworkingSockets_CreateListenSocketP2PNoOptions( int localVirtualPort );
 HSteamNetConnection Steam_NetworkingSockets_ConnectP2PSteamIDNoOptions( uint64_steamid steamID, int remoteVirtualPort );
 void Steam_NetworkingSockets_EnableConnectionStatusCallbacks();
@@ -63,7 +66,15 @@ int Steam_NetworkingSockets_SendMessageToConnectionString( HSteamNetConnection c
 std::vector<std::string> Steam_NetworkingSockets_ReceiveMessagesOnConnectionStrings( HSteamNetConnection connection, int maxMessages );
 std::vector<std::string> Steam_NetworkingSockets_ReceiveMessagesOnPollGroupStrings( HSteamNetPollGroup pollGroup, int maxMessages );
 std::string Steam_NetworkingSockets_GetConnectionNameString( HSteamNetConnection connection );
+std::string Steam_NetworkingSockets_GetConnectionInfoString( HSteamNetConnection connection );
+std::string Steam_NetworkingSockets_GetConnectionRealTimeStatusString( HSteamNetConnection connection );
 std::string Steam_NetworkingSockets_GetDetailedConnectionStatusString( HSteamNetConnection connection );
+std::string Steam_NetworkingSockets_GetListenSocketAddressString( HSteamListenSocket listenSocket );
+std::string Steam_NetworkingSockets_GetIdentityString();
+std::string Steam_NetworkingSockets_GetAuthenticationStatusString();
+std::string Steam_NetworkingSockets_GetFakeIPString( int firstPortIndex );
+HSteamListenSocket Steam_NetworkingSockets_CreateListenSocketP2PFakeIPNoOptions( int fakePortIndex );
+std::string Steam_NetworkingSockets_GetRemoteFakeIPForConnectionString( HSteamNetConnection connection );
 HSteamListenSocket Steam_GameServerNetworkingSockets_CreateListenSocketP2PNoOptions( int localVirtualPort );
 HSteamNetPollGroup Steam_GameServerNetworkingSockets_CreatePollGroup();
 bool Steam_GameServerNetworkingSockets_DestroyPollGroup( HSteamNetPollGroup pollGroup );
