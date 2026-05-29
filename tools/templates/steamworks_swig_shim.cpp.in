@@ -1,11 +1,18 @@
 #include "steamworks_swig_shim.h"
 
+#include <cstring>
+
 namespace
 {
 SteamErrMsg g_lastInitError = { 0 };
 int g_lastInitResult = 0;
 SteamErrMsg g_lastGameServerInitError = { 0 };
 int g_lastGameServerInitResult = 0;
+CallbackMsg_t g_manualDispatchCallback = {};
+std::string g_manualDispatchCallbackData;
+bool g_manualDispatchHasCallback = false;
+std::string g_manualDispatchAPICallResultData;
+bool g_manualDispatchAPICallResultFailed = false;
 
 class LobbyAsyncState
 {
@@ -466,9 +473,140 @@ void Steam_ManualDispatch_RunFrame( HSteamPipe pipe )
 	SteamAPI_ManualDispatch_RunFrame( pipe );
 }
 
+bool Steam_ManualDispatch_GetNextCallback( HSteamPipe pipe )
+{
+	g_manualDispatchCallback = {};
+	g_manualDispatchCallbackData.clear();
+	g_manualDispatchHasCallback = false;
+
+	CallbackMsg_t callback = {};
+	if ( !SteamAPI_ManualDispatch_GetNextCallback( pipe, &callback ) )
+	{
+		return false;
+	}
+
+	g_manualDispatchCallback = callback;
+	if ( callback.m_pubParam && callback.m_cubParam > 0 )
+	{
+		g_manualDispatchCallbackData.assign(
+			reinterpret_cast<const char *>( callback.m_pubParam ),
+			static_cast<size_t>( callback.m_cubParam )
+		);
+	}
+	g_manualDispatchHasCallback = true;
+	return true;
+}
+
+HSteamUser Steam_ManualDispatch_GetCallbackSteamUser()
+{
+	return g_manualDispatchHasCallback ? g_manualDispatchCallback.m_hSteamUser : 0;
+}
+
+int Steam_ManualDispatch_GetCallbackID()
+{
+	return g_manualDispatchHasCallback ? g_manualDispatchCallback.m_iCallback : 0;
+}
+
+std::string Steam_ManualDispatch_GetCallbackData()
+{
+	return g_manualDispatchCallbackData;
+}
+
+int Steam_ManualDispatch_GetCallbackSize()
+{
+	return g_manualDispatchHasCallback ? g_manualDispatchCallback.m_cubParam : 0;
+}
+
+bool Steam_ManualDispatch_CallbackIsAPICallCompleted()
+{
+	return g_manualDispatchHasCallback && g_manualDispatchCallback.m_iCallback == SteamAPICallCompleted_t::k_iCallback;
+}
+
+SteamAPICall_t Steam_ManualDispatch_GetCompletedAPICall()
+{
+	if ( !Steam_ManualDispatch_CallbackIsAPICallCompleted() ||
+		g_manualDispatchCallbackData.size() < sizeof( SteamAPICallCompleted_t ) )
+	{
+		return k_uAPICallInvalid;
+	}
+
+	SteamAPICallCompleted_t completed = {};
+	std::memcpy( &completed, g_manualDispatchCallbackData.data(), sizeof( completed ) );
+	return completed.m_hAsyncCall;
+}
+
+int Steam_ManualDispatch_GetCompletedCallbackID()
+{
+	if ( !Steam_ManualDispatch_CallbackIsAPICallCompleted() ||
+		g_manualDispatchCallbackData.size() < sizeof( SteamAPICallCompleted_t ) )
+	{
+		return 0;
+	}
+
+	SteamAPICallCompleted_t completed = {};
+	std::memcpy( &completed, g_manualDispatchCallbackData.data(), sizeof( completed ) );
+	return completed.m_iCallback;
+}
+
+uint32 Steam_ManualDispatch_GetCompletedCallbackSize()
+{
+	if ( !Steam_ManualDispatch_CallbackIsAPICallCompleted() ||
+		g_manualDispatchCallbackData.size() < sizeof( SteamAPICallCompleted_t ) )
+	{
+		return 0;
+	}
+
+	SteamAPICallCompleted_t completed = {};
+	std::memcpy( &completed, g_manualDispatchCallbackData.data(), sizeof( completed ) );
+	return completed.m_cubParam;
+}
+
+bool Steam_ManualDispatch_GetAPICallResult( HSteamPipe pipe, SteamAPICall_t apiCall, int callbackSize, int callbackID )
+{
+	g_manualDispatchAPICallResultData.clear();
+	g_manualDispatchAPICallResultFailed = false;
+	if ( callbackSize <= 0 )
+	{
+		return false;
+	}
+
+	std::string resultData;
+	resultData.resize( static_cast<size_t>( callbackSize ) );
+	bool failed = false;
+	const bool ok = SteamAPI_ManualDispatch_GetAPICallResult(
+		pipe,
+		apiCall,
+		resultData.data(),
+		callbackSize,
+		callbackID,
+		&failed
+	);
+	if ( !ok )
+	{
+		return false;
+	}
+
+	g_manualDispatchAPICallResultData = resultData;
+	g_manualDispatchAPICallResultFailed = failed;
+	return true;
+}
+
+std::string Steam_ManualDispatch_GetAPICallResultData()
+{
+	return g_manualDispatchAPICallResultData;
+}
+
+bool Steam_ManualDispatch_GetAPICallResultFailed()
+{
+	return g_manualDispatchAPICallResultFailed;
+}
+
 void Steam_ManualDispatch_FreeLastCallback( HSteamPipe pipe )
 {
 	SteamAPI_ManualDispatch_FreeLastCallback( pipe );
+	g_manualDispatchCallback = {};
+	g_manualDispatchCallbackData.clear();
+	g_manualDispatchHasCallback = false;
 }
 
 HSteamPipe Steam_GetHSteamPipe()

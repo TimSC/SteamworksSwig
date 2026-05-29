@@ -99,6 +99,18 @@ steamworks.Steam_SetTryCatchCallbacks(enabled)
 steamworks.Steam_SetMiniDumpComment(message)
 steamworks.Steam_ManualDispatch_Init()
 steamworks.Steam_ManualDispatch_RunFrame(pipe)
+steamworks.Steam_ManualDispatch_GetNextCallback(pipe)
+steamworks.Steam_ManualDispatch_GetCallbackSteamUser()
+steamworks.Steam_ManualDispatch_GetCallbackID()
+steamworks.Steam_ManualDispatch_GetCallbackData()
+steamworks.Steam_ManualDispatch_GetCallbackSize()
+steamworks.Steam_ManualDispatch_CallbackIsAPICallCompleted()
+steamworks.Steam_ManualDispatch_GetCompletedAPICall()
+steamworks.Steam_ManualDispatch_GetCompletedCallbackID()
+steamworks.Steam_ManualDispatch_GetCompletedCallbackSize()
+steamworks.Steam_ManualDispatch_GetAPICallResult(pipe, api_call, callback_size, callback_id)
+steamworks.Steam_ManualDispatch_GetAPICallResultData()
+steamworks.Steam_ManualDispatch_GetAPICallResultFailed()
 steamworks.Steam_ManualDispatch_FreeLastCallback(pipe)
 steamworks.Steam_GetHSteamPipe()
 steamworks.Steam_GetHSteamUser()
@@ -121,8 +133,7 @@ steamworks.Steam_GameServer_QueryPortShared()
 ```
 
 Some global SDK functions still need explicit typemaps before they can be safely
-wrapped, notably callback-result APIs that take `CallbackMsg_t *`, arbitrary
-`void *` buffers, or callback function pointers.
+wrapped, notably callback function pointer registration APIs.
 
 ## API Coverage
 
@@ -212,6 +223,42 @@ steamworks.Steam_GameServer_SetAdvertiseServerActive(True)
 steamworks.Steam_GameServer_RunCallbacks()
 steamworks.Steam_GameServer_Shutdown()
 ```
+
+Manual dispatch is available when you want to pull Steam callbacks one at a
+time. After initialization, call `Steam_ManualDispatch_Init()` before using the
+manual-dispatch loop. For each frame, run the pipe once, then keep fetching
+callbacks until `Steam_ManualDispatch_GetNextCallback()` returns `False`.
+Whenever it returns `True`, finish inspecting the callback and call
+`Steam_ManualDispatch_FreeLastCallback(pipe)` before fetching the next one:
+
+```python
+pipe = steamworks.Steam_GetHSteamPipe()
+steamworks.Steam_ManualDispatch_Init()
+
+steamworks.Steam_ManualDispatch_RunFrame(pipe)
+while steamworks.Steam_ManualDispatch_GetNextCallback(pipe):
+    callback_id = steamworks.Steam_ManualDispatch_GetCallbackID()
+    payload = steamworks.Steam_ManualDispatch_GetCallbackData()
+
+    if steamworks.Steam_ManualDispatch_CallbackIsAPICallCompleted():
+        api_call = steamworks.Steam_ManualDispatch_GetCompletedAPICall()
+        result_callback = steamworks.Steam_ManualDispatch_GetCompletedCallbackID()
+        result_size = steamworks.Steam_ManualDispatch_GetCompletedCallbackSize()
+        if steamworks.Steam_ManualDispatch_GetAPICallResult(
+            pipe,
+            api_call,
+            result_size,
+            result_callback,
+        ):
+            result_payload = steamworks.Steam_ManualDispatch_GetAPICallResultData()
+            failed = steamworks.Steam_ManualDispatch_GetAPICallResultFailed()
+
+    steamworks.Steam_ManualDispatch_FreeLastCallback(pipe)
+```
+
+Manual dispatch replaces `Steam_RunCallbacks()` and
+`Steam_GameServer_RunCallbacks()` for code using that pipe. Do not mix it with
+the higher-level callback shims in the same callback flow.
 
 The networking-sockets helpers add Python-friendly overloads for the pointer-heavy
 payload methods used by the example:
