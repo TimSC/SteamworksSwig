@@ -13,6 +13,9 @@ std::string g_manualDispatchCallbackData;
 bool g_manualDispatchHasCallback = false;
 std::string g_manualDispatchAPICallResultData;
 bool g_manualDispatchAPICallResultFailed = false;
+int g_manualDispatchAPICallResultCallbackID = 0;
+
+std::string SerializeConnectionStatusChangedCallback( const SteamNetConnectionStatusChangedCallback_t &callback );
 
 class LobbyAsyncState
 {
@@ -204,20 +207,7 @@ private:
 		{
 			return;
 		}
-
-		const SteamNetConnectionInfo_t &info = callback->m_info;
-		std::string event;
-		event.reserve( 512 );
-		event += "connection=" + std::to_string( static_cast<uint32>( callback->m_hConn ) );
-		event += "\tlisten_socket=" + std::to_string( static_cast<uint32>( info.m_hListenSocket ) );
-		event += "\tremote_steam_id=" + std::to_string( info.m_identityRemote.GetSteamID64() );
-		event += "\told_state=" + std::to_string( static_cast<int>( callback->m_eOldState ) );
-		event += "\tstate=" + std::to_string( static_cast<int>( info.m_eState ) );
-		event += "\tend_reason=" + std::to_string( info.m_eEndReason );
-		event += "\tflags=" + std::to_string( info.m_nFlags );
-		event += "\tdescription=" + std::string( info.m_szConnectionDescription );
-		event += "\tend_debug=" + std::string( info.m_szEndDebug );
-		m_events.push_back( event );
+		m_events.push_back( SerializeConnectionStatusChangedCallback( *callback ) );
 	}
 
 	CCallbackManual<NetworkingStatusChangedQueue, SteamNetConnectionStatusChangedCallback_t> m_callback;
@@ -412,6 +402,155 @@ std::string SerializeConnectionInfo( const SteamNetConnectionInfo_t &info )
 	result += "\tdescription=" + EscapeEventField( info.m_szConnectionDescription );
 	result += "\tflags=" + std::to_string( info.m_nFlags );
 	return result;
+}
+
+std::string SerializeConnectionStatusChangedCallback( const SteamNetConnectionStatusChangedCallback_t &callback )
+{
+	std::string result;
+	result.reserve( 1152 );
+	result += "connection=" + std::to_string( static_cast<uint32>( callback.m_hConn ) );
+	result += "\told_state=" + std::to_string( static_cast<int>( callback.m_eOldState ) );
+	result += "\t" + SerializeConnectionInfo( callback.m_info );
+	return result;
+}
+
+std::string SerializeLobbyMatchList( const LobbyMatchList_t &callback )
+{
+	std::string result;
+	result.reserve( 48 );
+	result += "lobbies_matching=" + std::to_string( callback.m_nLobbiesMatching );
+	return result;
+}
+
+std::string SerializeLobbyEnter( const LobbyEnter_t &callback )
+{
+	std::string result;
+	result.reserve( 160 );
+	result += "lobby=" + std::to_string( callback.m_ulSteamIDLobby );
+	result += "\tchat_permissions=" + std::to_string( callback.m_rgfChatPermissions );
+	result += "\tlocked=" + std::to_string( callback.m_bLocked ? 1 : 0 );
+	result += "\tresponse=" + std::to_string( callback.m_EChatRoomEnterResponse );
+	return result;
+}
+
+std::string SerializeLobbyDataUpdate( const LobbyDataUpdate_t &callback )
+{
+	std::string result;
+	result.reserve( 128 );
+	result += "lobby=" + std::to_string( callback.m_ulSteamIDLobby );
+	result += "\tmember=" + std::to_string( callback.m_ulSteamIDMember );
+	result += "\tsuccess=" + std::to_string( callback.m_bSuccess ? 1 : 0 );
+	return result;
+}
+
+std::string SerializeLobbyChatUpdate( const LobbyChatUpdate_t &callback )
+{
+	std::string result;
+	result.reserve( 192 );
+	result += "lobby=" + std::to_string( callback.m_ulSteamIDLobby );
+	result += "\tuser_changed=" + std::to_string( callback.m_ulSteamIDUserChanged );
+	result += "\tmaking_change=" + std::to_string( callback.m_ulSteamIDMakingChange );
+	result += "\tstate_change=" + std::to_string( callback.m_rgfChatMemberStateChange );
+	return result;
+}
+
+std::string SerializeLobbyChatMsg( const LobbyChatMsg_t &callback )
+{
+	std::string result;
+	result.reserve( 160 );
+	result += "lobby=" + std::to_string( callback.m_ulSteamIDLobby );
+	result += "\tuser=" + std::to_string( callback.m_ulSteamIDUser );
+	result += "\ttype=" + std::to_string( callback.m_eChatEntryType );
+	result += "\tchat_id=" + std::to_string( callback.m_iChatID );
+	return result;
+}
+
+std::string SerializeLobbyGameCreated( const LobbyGameCreated_t &callback )
+{
+	std::string result;
+	result.reserve( 160 );
+	result += "lobby=" + std::to_string( callback.m_ulSteamIDLobby );
+	result += "\tgame_server=" + std::to_string( callback.m_ulSteamIDGameServer );
+	result += "\tip=" + std::to_string( callback.m_unIP );
+	result += "\tport=" + std::to_string( callback.m_usPort );
+	return result;
+}
+
+std::string SerializeLobbyCreated( const LobbyCreated_t &callback )
+{
+	std::string result;
+	result.reserve( 96 );
+	result += "result=" + std::to_string( static_cast<int>( callback.m_eResult ) );
+	result += "\tlobby=" + std::to_string( callback.m_ulSteamIDLobby );
+	return result;
+}
+
+std::string SerializeGameLobbyJoinRequested( const GameLobbyJoinRequested_t &callback )
+{
+	std::string result;
+	result.reserve( 128 );
+	result += "lobby=" + std::to_string( callback.m_steamIDLobby.ConvertToUint64() );
+	result += "\tfriend=" + std::to_string( callback.m_steamIDFriend.ConvertToUint64() );
+	return result;
+}
+
+std::string SerializePersonaStateChange( const PersonaStateChange_t &callback )
+{
+	std::string result;
+	result.reserve( 96 );
+	result += "steam_id=" + std::to_string( callback.m_ulSteamID );
+	result += "\tchange_flags=" + std::to_string( callback.m_nChangeFlags );
+	return result;
+}
+
+std::string SerializeSteamNetAuthenticationStatus( const SteamNetAuthenticationStatus_t &callback )
+{
+	std::string result;
+	result.reserve( 320 );
+	result += "availability=" + std::to_string( static_cast<int>( callback.m_eAvail ) );
+	result += "\tdebug=" + EscapeEventField( callback.m_debugMsg );
+	return result;
+}
+
+std::string SerializeSteamRelayNetworkStatus( const SteamRelayNetworkStatus_t &callback )
+{
+	std::string result;
+	result.reserve( 448 );
+	result += "availability=" + std::to_string( static_cast<int>( callback.m_eAvail ) );
+	result += "\tping_measurement_in_progress=" + std::to_string( callback.m_bPingMeasurementInProgress );
+	result += "\tnetwork_config_availability=" + std::to_string( static_cast<int>( callback.m_eAvailNetworkConfig ) );
+	result += "\tany_relay_availability=" + std::to_string( static_cast<int>( callback.m_eAvailAnyRelay ) );
+	result += "\tdebug=" + EscapeEventField( callback.m_debugMsg );
+	return result;
+}
+
+std::string SerializeSteamNetworkingMessagesSessionRequest( const SteamNetworkingMessagesSessionRequest_t &callback )
+{
+	return SerializeNetworkingIdentity( callback.m_identityRemote );
+}
+
+std::string SerializeSteamNetworkingMessagesSessionFailed( const SteamNetworkingMessagesSessionFailed_t &callback )
+{
+	return SerializeConnectionInfo( callback.m_info );
+}
+
+template <typename CallbackType>
+bool CopyCallbackPayload( const std::string &payload, CallbackType *callback )
+{
+	if ( !callback || payload.size() < sizeof( CallbackType ) )
+	{
+		return false;
+	}
+	std::memcpy( callback, payload.data(), sizeof( CallbackType ) );
+	return true;
+}
+
+template <typename CallbackType>
+bool CopyCurrentManualDispatchCallback( CallbackType *callback )
+{
+	return g_manualDispatchHasCallback &&
+		g_manualDispatchCallback.m_iCallback == CallbackType::k_iCallback &&
+		CopyCallbackPayload( g_manualDispatchCallbackData, callback );
 }
 
 std::string SerializeGameServerItem( const gameserveritem_t &server )
@@ -759,6 +898,7 @@ bool Steam_ManualDispatch_GetAPICallResult( HSteamPipe pipe, SteamAPICall_t apiC
 {
 	g_manualDispatchAPICallResultData.clear();
 	g_manualDispatchAPICallResultFailed = false;
+	g_manualDispatchAPICallResultCallbackID = 0;
 	if ( callbackSize <= 0 )
 	{
 		return false;
@@ -782,6 +922,7 @@ bool Steam_ManualDispatch_GetAPICallResult( HSteamPipe pipe, SteamAPICall_t apiC
 
 	g_manualDispatchAPICallResultData = resultData;
 	g_manualDispatchAPICallResultFailed = failed;
+	g_manualDispatchAPICallResultCallbackID = callbackID;
 	return true;
 }
 
@@ -793,6 +934,246 @@ std::string Steam_ManualDispatch_GetAPICallResultData()
 bool Steam_ManualDispatch_GetAPICallResultFailed()
 {
 	return g_manualDispatchAPICallResultFailed;
+}
+
+int Steam_ManualDispatch_CallbackIDSteamAPICallCompleted()
+{
+	return SteamAPICallCompleted_t::k_iCallback;
+}
+
+int Steam_ManualDispatch_CallbackIDSteamNetConnectionStatusChanged()
+{
+	return SteamNetConnectionStatusChangedCallback_t::k_iCallback;
+}
+
+int Steam_ManualDispatch_CallbackIDLobbyMatchList()
+{
+	return LobbyMatchList_t::k_iCallback;
+}
+
+int Steam_ManualDispatch_CallbackIDLobbyEnter()
+{
+	return LobbyEnter_t::k_iCallback;
+}
+
+int Steam_ManualDispatch_CallbackIDLobbyCreated()
+{
+	return LobbyCreated_t::k_iCallback;
+}
+
+int Steam_ManualDispatch_CallbackIDLobbyDataUpdate()
+{
+	return LobbyDataUpdate_t::k_iCallback;
+}
+
+int Steam_ManualDispatch_CallbackIDLobbyChatUpdate()
+{
+	return LobbyChatUpdate_t::k_iCallback;
+}
+
+int Steam_ManualDispatch_CallbackIDLobbyChatMsg()
+{
+	return LobbyChatMsg_t::k_iCallback;
+}
+
+int Steam_ManualDispatch_CallbackIDLobbyGameCreated()
+{
+	return LobbyGameCreated_t::k_iCallback;
+}
+
+int Steam_ManualDispatch_CallbackIDGameLobbyJoinRequested()
+{
+	return GameLobbyJoinRequested_t::k_iCallback;
+}
+
+int Steam_ManualDispatch_CallbackIDPersonaStateChange()
+{
+	return PersonaStateChange_t::k_iCallback;
+}
+
+int Steam_ManualDispatch_CallbackIDSteamNetAuthenticationStatus()
+{
+	return SteamNetAuthenticationStatus_t::k_iCallback;
+}
+
+int Steam_ManualDispatch_CallbackIDSteamRelayNetworkStatus()
+{
+	return SteamRelayNetworkStatus_t::k_iCallback;
+}
+
+int Steam_ManualDispatch_CallbackIDSteamNetworkingMessagesSessionRequest()
+{
+	return SteamNetworkingMessagesSessionRequest_t::k_iCallback;
+}
+
+int Steam_ManualDispatch_CallbackIDSteamNetworkingMessagesSessionFailed()
+{
+	return SteamNetworkingMessagesSessionFailed_t::k_iCallback;
+}
+
+std::string Steam_ManualDispatch_DecodeCallbackSteamNetConnectionStatusChanged()
+{
+	SteamNetConnectionStatusChangedCallback_t callback = {};
+	if ( !CopyCurrentManualDispatchCallback( &callback ) )
+	{
+		return {};
+	}
+	return SerializeConnectionStatusChangedCallback( callback );
+}
+
+std::string Steam_ManualDispatch_DecodeCallbackLobbyEnter()
+{
+	LobbyEnter_t callback = {};
+	if ( !CopyCurrentManualDispatchCallback( &callback ) )
+	{
+		return {};
+	}
+	return SerializeLobbyEnter( callback );
+}
+
+std::string Steam_ManualDispatch_DecodeCallbackLobbyDataUpdate()
+{
+	LobbyDataUpdate_t callback = {};
+	if ( !CopyCurrentManualDispatchCallback( &callback ) )
+	{
+		return {};
+	}
+	return SerializeLobbyDataUpdate( callback );
+}
+
+std::string Steam_ManualDispatch_DecodeCallbackLobbyChatUpdate()
+{
+	LobbyChatUpdate_t callback = {};
+	if ( !CopyCurrentManualDispatchCallback( &callback ) )
+	{
+		return {};
+	}
+	return SerializeLobbyChatUpdate( callback );
+}
+
+std::string Steam_ManualDispatch_DecodeCallbackLobbyChatMsg()
+{
+	LobbyChatMsg_t callback = {};
+	if ( !CopyCurrentManualDispatchCallback( &callback ) )
+	{
+		return {};
+	}
+	return SerializeLobbyChatMsg( callback );
+}
+
+std::string Steam_ManualDispatch_DecodeCallbackLobbyGameCreated()
+{
+	LobbyGameCreated_t callback = {};
+	if ( !CopyCurrentManualDispatchCallback( &callback ) )
+	{
+		return {};
+	}
+	return SerializeLobbyGameCreated( callback );
+}
+
+std::string Steam_ManualDispatch_DecodeCallbackGameLobbyJoinRequested()
+{
+	GameLobbyJoinRequested_t callback = {};
+	if ( !CopyCurrentManualDispatchCallback( &callback ) )
+	{
+		return {};
+	}
+	return SerializeGameLobbyJoinRequested( callback );
+}
+
+std::string Steam_ManualDispatch_DecodeCallbackPersonaStateChange()
+{
+	PersonaStateChange_t callback = {};
+	if ( !CopyCurrentManualDispatchCallback( &callback ) )
+	{
+		return {};
+	}
+	return SerializePersonaStateChange( callback );
+}
+
+std::string Steam_ManualDispatch_DecodeCallbackSteamNetAuthenticationStatus()
+{
+	SteamNetAuthenticationStatus_t callback = {};
+	if ( !CopyCurrentManualDispatchCallback( &callback ) )
+	{
+		return {};
+	}
+	return SerializeSteamNetAuthenticationStatus( callback );
+}
+
+std::string Steam_ManualDispatch_DecodeCallbackSteamRelayNetworkStatus()
+{
+	SteamRelayNetworkStatus_t callback = {};
+	if ( !CopyCurrentManualDispatchCallback( &callback ) )
+	{
+		return {};
+	}
+	return SerializeSteamRelayNetworkStatus( callback );
+}
+
+std::string Steam_ManualDispatch_DecodeCallbackSteamNetworkingMessagesSessionRequest()
+{
+	SteamNetworkingMessagesSessionRequest_t callback = {};
+	if ( !CopyCurrentManualDispatchCallback( &callback ) )
+	{
+		return {};
+	}
+	return SerializeSteamNetworkingMessagesSessionRequest( callback );
+}
+
+std::string Steam_ManualDispatch_DecodeCallbackSteamNetworkingMessagesSessionFailed()
+{
+	SteamNetworkingMessagesSessionFailed_t callback = {};
+	if ( !CopyCurrentManualDispatchCallback( &callback ) )
+	{
+		return {};
+	}
+	return SerializeSteamNetworkingMessagesSessionFailed( callback );
+}
+
+std::string Steam_ManualDispatch_DecodeAPICallResultLobbyMatchList()
+{
+	if ( g_manualDispatchAPICallResultCallbackID != LobbyMatchList_t::k_iCallback )
+	{
+		return {};
+	}
+
+	LobbyMatchList_t callback = {};
+	if ( !CopyCallbackPayload( g_manualDispatchAPICallResultData, &callback ) )
+	{
+		return {};
+	}
+	return SerializeLobbyMatchList( callback );
+}
+
+std::string Steam_ManualDispatch_DecodeAPICallResultLobbyEnter()
+{
+	if ( g_manualDispatchAPICallResultCallbackID != LobbyEnter_t::k_iCallback )
+	{
+		return {};
+	}
+
+	LobbyEnter_t callback = {};
+	if ( !CopyCallbackPayload( g_manualDispatchAPICallResultData, &callback ) )
+	{
+		return {};
+	}
+	return SerializeLobbyEnter( callback );
+}
+
+std::string Steam_ManualDispatch_DecodeAPICallResultLobbyCreated()
+{
+	if ( g_manualDispatchAPICallResultCallbackID != LobbyCreated_t::k_iCallback )
+	{
+		return {};
+	}
+
+	LobbyCreated_t callback = {};
+	if ( !CopyCallbackPayload( g_manualDispatchAPICallResultData, &callback ) )
+	{
+		return {};
+	}
+	return SerializeLobbyCreated( callback );
 }
 
 void Steam_ManualDispatch_FreeLastCallback( HSteamPipe pipe )

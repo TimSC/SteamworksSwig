@@ -111,6 +111,36 @@ steamworks.Steam_ManualDispatch_GetCompletedCallbackSize()
 steamworks.Steam_ManualDispatch_GetAPICallResult(pipe, api_call, callback_size, callback_id)
 steamworks.Steam_ManualDispatch_GetAPICallResultData()
 steamworks.Steam_ManualDispatch_GetAPICallResultFailed()
+steamworks.Steam_ManualDispatch_CallbackIDSteamAPICallCompleted()
+steamworks.Steam_ManualDispatch_CallbackIDSteamNetConnectionStatusChanged()
+steamworks.Steam_ManualDispatch_CallbackIDLobbyMatchList()
+steamworks.Steam_ManualDispatch_CallbackIDLobbyEnter()
+steamworks.Steam_ManualDispatch_CallbackIDLobbyCreated()
+steamworks.Steam_ManualDispatch_CallbackIDLobbyDataUpdate()
+steamworks.Steam_ManualDispatch_CallbackIDLobbyChatUpdate()
+steamworks.Steam_ManualDispatch_CallbackIDLobbyChatMsg()
+steamworks.Steam_ManualDispatch_CallbackIDLobbyGameCreated()
+steamworks.Steam_ManualDispatch_CallbackIDGameLobbyJoinRequested()
+steamworks.Steam_ManualDispatch_CallbackIDPersonaStateChange()
+steamworks.Steam_ManualDispatch_CallbackIDSteamNetAuthenticationStatus()
+steamworks.Steam_ManualDispatch_CallbackIDSteamRelayNetworkStatus()
+steamworks.Steam_ManualDispatch_CallbackIDSteamNetworkingMessagesSessionRequest()
+steamworks.Steam_ManualDispatch_CallbackIDSteamNetworkingMessagesSessionFailed()
+steamworks.Steam_ManualDispatch_DecodeCallbackSteamNetConnectionStatusChanged()
+steamworks.Steam_ManualDispatch_DecodeCallbackLobbyEnter()
+steamworks.Steam_ManualDispatch_DecodeCallbackLobbyDataUpdate()
+steamworks.Steam_ManualDispatch_DecodeCallbackLobbyChatUpdate()
+steamworks.Steam_ManualDispatch_DecodeCallbackLobbyChatMsg()
+steamworks.Steam_ManualDispatch_DecodeCallbackLobbyGameCreated()
+steamworks.Steam_ManualDispatch_DecodeCallbackGameLobbyJoinRequested()
+steamworks.Steam_ManualDispatch_DecodeCallbackPersonaStateChange()
+steamworks.Steam_ManualDispatch_DecodeCallbackSteamNetAuthenticationStatus()
+steamworks.Steam_ManualDispatch_DecodeCallbackSteamRelayNetworkStatus()
+steamworks.Steam_ManualDispatch_DecodeCallbackSteamNetworkingMessagesSessionRequest()
+steamworks.Steam_ManualDispatch_DecodeCallbackSteamNetworkingMessagesSessionFailed()
+steamworks.Steam_ManualDispatch_DecodeAPICallResultLobbyMatchList()
+steamworks.Steam_ManualDispatch_DecodeAPICallResultLobbyEnter()
+steamworks.Steam_ManualDispatch_DecodeAPICallResultLobbyCreated()
 steamworks.Steam_ManualDispatch_FreeLastCallback(pipe)
 steamworks.Steam_GetHSteamPipe()
 steamworks.Steam_GetHSteamUser()
@@ -256,7 +286,14 @@ steamworks.Steam_ManualDispatch_Init()
 steamworks.Steam_ManualDispatch_RunFrame(pipe)
 while steamworks.Steam_ManualDispatch_GetNextCallback(pipe):
     callback_id = steamworks.Steam_ManualDispatch_GetCallbackID()
-    payload = steamworks.Steam_ManualDispatch_GetCallbackData()
+
+    if callback_id == steamworks.Steam_ManualDispatch_CallbackIDSteamNetConnectionStatusChanged():
+        fields = dict(
+            part.split("=", 1)
+            for part in steamworks.Steam_ManualDispatch_DecodeCallbackSteamNetConnectionStatusChanged().split("\t")
+        )
+        connection = int(fields["connection"])
+        state = int(fields["state"])
 
     if steamworks.Steam_ManualDispatch_CallbackIsAPICallCompleted():
         api_call = steamworks.Steam_ManualDispatch_GetCompletedAPICall()
@@ -268,11 +305,29 @@ while steamworks.Steam_ManualDispatch_GetNextCallback(pipe):
             result_size,
             result_callback,
         ):
-            result_payload = steamworks.Steam_ManualDispatch_GetAPICallResultData()
             failed = steamworks.Steam_ManualDispatch_GetAPICallResultFailed()
+            if result_callback == steamworks.Steam_ManualDispatch_CallbackIDLobbyCreated():
+                fields = dict(
+                    part.split("=", 1)
+                    for part in steamworks.Steam_ManualDispatch_DecodeAPICallResultLobbyCreated().split("\t")
+                )
+            elif result_callback == steamworks.Steam_ManualDispatch_CallbackIDLobbyMatchList():
+                fields = dict(
+                    part.split("=", 1)
+                    for part in steamworks.Steam_ManualDispatch_DecodeAPICallResultLobbyMatchList().split("\t")
+                )
 
     steamworks.Steam_ManualDispatch_FreeLastCallback(pipe)
 ```
+
+The raw byte accessors remain available, but prefer the typed decoders for
+callback structs that the shim knows about. `SteamNetConnectionStatusChanged`
+decodes the current connection handle, previous state, and the full
+`SteamNetConnectionInfo_t` field set. Direct callback decoders also cover lobby
+enter/data/chat/game-created events, Steam overlay lobby joins, persona changes,
+network auth/relay status, and SteamNetworkingMessages session request/failure
+events. Lobby API-call results currently decode `LobbyMatchList_t`,
+`LobbyEnter_t`, and `LobbyCreated_t`.
 
 Manual dispatch replaces `Steam_RunCallbacks()` and
 `Steam_GameServer_RunCallbacks()` for code using that pipe. Do not mix it with
@@ -355,9 +410,9 @@ python3 p2p_sockets_demo.py --message "hello from connector" connect 7656119...
 ```
 
 The remaining major gap for a full SpaceWar port is broad callback delivery.
-Lobby creation, lobby enter, lobby list results, and server browser responses
-are callback-driven in the C++ example. Those still need callback struct
-typemaps or higher-level polling/event shims.
+Lobby creation, lobby enter, and lobby list results are available through the
+ManualDispatch API-call result decoders above. Server browser responses still
+need callback struct typemaps or higher-level polling/event shims.
 
 There is currently a small higher-level lobby shim for listing and joining
 lobbies:
