@@ -329,6 +329,11 @@ network auth/relay status, and SteamNetworkingMessages session request/failure
 events. Lobby API-call results currently decode `LobbyMatchList_t`,
 `LobbyEnter_t`, and `LobbyCreated_t`.
 
+ManualDispatch callback decoders are generated from curated metadata in
+`tools/generate_swig_shim.py`. Add simple callback structs there rather than
+hand-editing the C++ templates; keep only special nested serializers in the
+template.
+
 Manual dispatch replaces `Steam_RunCallbacks()` and
 `Steam_GameServer_RunCallbacks()` for code using that pipe. Do not mix it with
 the higher-level callback shims in the same callback flow.
