@@ -8,6 +8,7 @@
 #include "steam/steam_gameserver.h"
 #include "steam/steamnetworkingfakeip.h"
 
+typedef std::string SteamworksBytes;
 typedef std::vector<std::string> SteamworksBytesVector;
 
 bool Steam_Init();
@@ -58,6 +59,14 @@ int Steam_ServerModeNoAuthentication();
 int Steam_ServerModeAuthentication();
 int Steam_ServerModeAuthenticationAndSecure();
 uint16 Steam_GameServer_QueryPortShared();
+HAuthTicket Steam_User_GetAuthSessionTicketBytes( int maxTicketSize );
+SteamworksBytes Steam_User_GetLastAuthSessionTicketBytes();
+int Steam_User_BeginAuthSessionBytes( const char * data, size_t dataSize, uint64_steamid steamID );
+SteamAPICall_t Steam_User_RequestEncryptedAppTicketBytes( const char * data, size_t dataSize );
+SteamworksBytes Steam_User_GetEncryptedAppTicketBytes( int maxTicketSize );
+HAuthTicket Steam_GameServer_GetAuthSessionTicketBytes( int maxTicketSize );
+SteamworksBytes Steam_GameServer_GetLastAuthSessionTicketBytes();
+int Steam_GameServer_BeginAuthSessionBytes( const char * data, size_t dataSize, uint64_steamid steamID );
 HSteamListenSocket Steam_NetworkingSockets_CreateListenSocketIPStringNoOptions( const char * address );
 HSteamNetConnection Steam_NetworkingSockets_ConnectByIPAddressStringNoOptions( const char * address );
 HSteamListenSocket Steam_NetworkingSockets_CreateListenSocketP2PNoOptions( int localVirtualPort );
@@ -94,6 +103,27 @@ std::vector<std::string> Steam_GameServerNetworkingSockets_ReceiveMessagesOnConn
 SteamworksBytesVector Steam_GameServerNetworkingSockets_ReceiveMessagesOnConnectionBytes( HSteamNetConnection connection, int maxMessages );
 std::vector<std::string> Steam_GameServerNetworkingSockets_ReceiveMessagesOnPollGroupStrings( HSteamNetPollGroup pollGroup, int maxMessages );
 SteamworksBytesVector Steam_GameServerNetworkingSockets_ReceiveMessagesOnPollGroupBytes( HSteamNetPollGroup pollGroup, int maxMessages );
+int Steam_NetworkingMessages_SendMessageToSteamIDBytes( uint64_steamid steamID, const char * data, size_t dataSize, int sendFlags, int remoteChannel );
+SteamworksBytesVector Steam_NetworkingMessages_ReceiveMessagesOnChannelBytes( int localChannel, int maxMessages );
+bool Steam_NetworkingMessages_AcceptSessionWithSteamID( uint64_steamid steamID );
+bool Steam_NetworkingMessages_CloseSessionWithSteamID( uint64_steamid steamID );
+bool Steam_NetworkingMessages_CloseChannelWithSteamID( uint64_steamid steamID, int localChannel );
+int Steam_GameServerNetworkingMessages_SendMessageToSteamIDBytes( uint64_steamid steamID, const char * data, size_t dataSize, int sendFlags, int remoteChannel );
+SteamworksBytesVector Steam_GameServerNetworkingMessages_ReceiveMessagesOnChannelBytes( int localChannel, int maxMessages );
+bool Steam_GameServerNetworkingMessages_AcceptSessionWithSteamID( uint64_steamid steamID );
+bool Steam_GameServerNetworkingMessages_CloseSessionWithSteamID( uint64_steamid steamID );
+bool Steam_GameServerNetworkingMessages_CloseChannelWithSteamID( uint64_steamid steamID, int localChannel );
+bool Steam_RemoteStorage_FileWriteBytes( const char * filename, const char * data, size_t dataSize );
+SteamworksBytes Steam_RemoteStorage_FileReadBytes( const char * filename, int32 dataSize );
+SteamAPICall_t Steam_RemoteStorage_FileWriteAsyncBytes( const char * filename, const char * data, size_t dataSize );
+SteamworksBytes Steam_RemoteStorage_FileReadAsyncCompleteBytes( SteamAPICall_t readCall, uint32 dataSize );
+bool Steam_RemoteStorage_FileWriteStreamWriteChunkBytes( UGCFileWriteStreamHandle_t writeHandle, const char * data, size_t dataSize );
+bool Steam_HTTP_SetHTTPRequestRawPostBodyBytes( HTTPRequestHandle request, const char * contentType, const char * data, size_t dataSize );
+SteamworksBytes Steam_HTTP_GetHTTPResponseBodyDataBytes( HTTPRequestHandle request, uint32 dataSize );
+SteamworksBytes Steam_HTTP_GetHTTPStreamingResponseBodyDataBytes( HTTPRequestHandle request, uint32 offset, uint32 dataSize );
+bool Steam_GameServerHTTP_SetHTTPRequestRawPostBodyBytes( HTTPRequestHandle request, const char * contentType, const char * data, size_t dataSize );
+SteamworksBytes Steam_GameServerHTTP_GetHTTPResponseBodyDataBytes( HTTPRequestHandle request, uint32 dataSize );
+SteamworksBytes Steam_GameServerHTTP_GetHTTPStreamingResponseBodyDataBytes( HTTPRequestHandle request, uint32 offset, uint32 dataSize );
 int Steam_NetworkingSend_Unreliable();
 int Steam_NetworkingSend_UnreliableNoDelay();
 int Steam_NetworkingSend_Reliable();
