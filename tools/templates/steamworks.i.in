@@ -8,6 +8,40 @@
 %include <std_vector.i>
 %template(StringVector) std::vector<std::string>;
 
+typedef std::vector<std::string> SteamworksBytesVector;
+
+%typemap(out) SteamworksBytesVector {
+    PyObject *list = PyList_New(static_cast<Py_ssize_t>($1.size()));
+    if (!list) {
+        SWIG_fail;
+    }
+    for (size_t i = 0; i < $1.size(); ++i) {
+        const std::string &item = $1[i];
+        PyObject *bytes = PyBytes_FromStringAndSize(item.data(), static_cast<Py_ssize_t>(item.size()));
+        if (!bytes) {
+            Py_DECREF(list);
+            SWIG_fail;
+        }
+        PyList_SET_ITEM(list, static_cast<Py_ssize_t>(i), bytes);
+    }
+    $result = list;
+}
+
+%typemap(in) (const char * data, size_t dataSize) (char *buffer = 0, Py_ssize_t buffer_size = 0) {
+    if (!PyBytes_Check($input)) {
+        SWIG_exception_fail(SWIG_TypeError, "expected bytes");
+    }
+    if (PyBytes_AsStringAndSize($input, &buffer, &buffer_size) == -1) {
+        SWIG_fail;
+    }
+    $1 = buffer;
+    $2 = static_cast<size_t>(buffer_size);
+}
+
+%typemap(typecheck) (const char * data, size_t dataSize) {
+    $1 = PyBytes_Check($input) ? 1 : 0;
+}
+
 {{ swig_type_declarations }}
 
 %include "steamworks_swig_shim.h"

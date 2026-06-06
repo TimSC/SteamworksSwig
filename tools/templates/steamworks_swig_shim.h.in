@@ -8,6 +8,8 @@
 #include "steam/steam_gameserver.h"
 #include "steam/steamnetworkingfakeip.h"
 
+typedef std::vector<std::string> SteamworksBytesVector;
+
 bool Steam_Init();
 int Steam_InitEx();
 int Steam_InitFlat();
@@ -64,8 +66,11 @@ void Steam_NetworkingSockets_EnableConnectionStatusCallbacks();
 void Steam_NetworkingSockets_ClearConnectionStatusChangedEvents();
 std::vector<std::string> Steam_NetworkingSockets_PollConnectionStatusChangedStrings( int maxEvents );
 int Steam_NetworkingSockets_SendMessageToConnectionString( HSteamNetConnection connection, const std::string & data, int sendFlags );
+int Steam_NetworkingSockets_SendMessageToConnectionBytes( HSteamNetConnection connection, const char * data, size_t dataSize, int sendFlags );
 std::vector<std::string> Steam_NetworkingSockets_ReceiveMessagesOnConnectionStrings( HSteamNetConnection connection, int maxMessages );
+SteamworksBytesVector Steam_NetworkingSockets_ReceiveMessagesOnConnectionBytes( HSteamNetConnection connection, int maxMessages );
 std::vector<std::string> Steam_NetworkingSockets_ReceiveMessagesOnPollGroupStrings( HSteamNetPollGroup pollGroup, int maxMessages );
+SteamworksBytesVector Steam_NetworkingSockets_ReceiveMessagesOnPollGroupBytes( HSteamNetPollGroup pollGroup, int maxMessages );
 std::string Steam_NetworkingSockets_GetConnectionNameString( HSteamNetConnection connection );
 std::string Steam_NetworkingSockets_GetConnectionInfoString( HSteamNetConnection connection );
 std::string Steam_NetworkingSockets_GetConnectionRealTimeStatusString( HSteamNetConnection connection );
@@ -84,8 +89,11 @@ bool Steam_GameServerNetworkingSockets_CloseConnection( HSteamNetConnection conn
 bool Steam_GameServerNetworkingSockets_CloseListenSocket( HSteamListenSocket listenSocket );
 bool Steam_GameServerNetworkingSockets_SetConnectionPollGroup( HSteamNetConnection connection, HSteamNetPollGroup pollGroup );
 int Steam_GameServerNetworkingSockets_SendMessageToConnectionString( HSteamNetConnection connection, const std::string & data, int sendFlags );
+int Steam_GameServerNetworkingSockets_SendMessageToConnectionBytes( HSteamNetConnection connection, const char * data, size_t dataSize, int sendFlags );
 std::vector<std::string> Steam_GameServerNetworkingSockets_ReceiveMessagesOnConnectionStrings( HSteamNetConnection connection, int maxMessages );
+SteamworksBytesVector Steam_GameServerNetworkingSockets_ReceiveMessagesOnConnectionBytes( HSteamNetConnection connection, int maxMessages );
 std::vector<std::string> Steam_GameServerNetworkingSockets_ReceiveMessagesOnPollGroupStrings( HSteamNetPollGroup pollGroup, int maxMessages );
+SteamworksBytesVector Steam_GameServerNetworkingSockets_ReceiveMessagesOnPollGroupBytes( HSteamNetPollGroup pollGroup, int maxMessages );
 int Steam_NetworkingSend_Unreliable();
 int Steam_NetworkingSend_UnreliableNoDelay();
 int Steam_NetworkingSend_Reliable();

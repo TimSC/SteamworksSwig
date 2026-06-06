@@ -1004,12 +1004,32 @@ int Steam_NetworkingSockets_SendMessageToConnectionString( HSteamNetConnection c
 	return static_cast<int>( sockets->SendMessageToConnection( connection, data.data(), static_cast<uint32>( data.size() ), sendFlags, nullptr ) );
 }
 
+int Steam_NetworkingSockets_SendMessageToConnectionBytes( HSteamNetConnection connection, const char * data, size_t dataSize, int sendFlags )
+{
+	auto *sockets = SteamAPI_SteamNetworkingSockets_SteamAPI();
+	if ( !sockets || ( !data && dataSize > 0 ) || dataSize > UINT32_MAX )
+	{
+		return k_EResultInvalidState;
+	}
+	return static_cast<int>( sockets->SendMessageToConnection( connection, data, static_cast<uint32>( dataSize ), sendFlags, nullptr ) );
+}
+
 std::vector<std::string> Steam_NetworkingSockets_ReceiveMessagesOnConnectionStrings( HSteamNetConnection connection, int maxMessages )
 {
 	return ReceiveMessagesOnConnectionStrings( SteamAPI_SteamNetworkingSockets_SteamAPI(), connection, maxMessages );
 }
 
+SteamworksBytesVector Steam_NetworkingSockets_ReceiveMessagesOnConnectionBytes( HSteamNetConnection connection, int maxMessages )
+{
+	return ReceiveMessagesOnConnectionStrings( SteamAPI_SteamNetworkingSockets_SteamAPI(), connection, maxMessages );
+}
+
 std::vector<std::string> Steam_NetworkingSockets_ReceiveMessagesOnPollGroupStrings( HSteamNetPollGroup pollGroup, int maxMessages )
+{
+	return ReceiveMessagesOnPollGroupStrings( SteamAPI_SteamNetworkingSockets_SteamAPI(), pollGroup, maxMessages );
+}
+
+SteamworksBytesVector Steam_NetworkingSockets_ReceiveMessagesOnPollGroupBytes( HSteamNetPollGroup pollGroup, int maxMessages )
 {
 	return ReceiveMessagesOnPollGroupStrings( SteamAPI_SteamNetworkingSockets_SteamAPI(), pollGroup, maxMessages );
 }
@@ -1228,12 +1248,32 @@ int Steam_GameServerNetworkingSockets_SendMessageToConnectionString( HSteamNetCo
 	return static_cast<int>( sockets->SendMessageToConnection( connection, data.data(), static_cast<uint32>( data.size() ), sendFlags, nullptr ) );
 }
 
+int Steam_GameServerNetworkingSockets_SendMessageToConnectionBytes( HSteamNetConnection connection, const char * data, size_t dataSize, int sendFlags )
+{
+	auto *sockets = SteamAPI_SteamGameServerNetworkingSockets_SteamAPI();
+	if ( !sockets || ( !data && dataSize > 0 ) || dataSize > UINT32_MAX )
+	{
+		return k_EResultInvalidState;
+	}
+	return static_cast<int>( sockets->SendMessageToConnection( connection, data, static_cast<uint32>( dataSize ), sendFlags, nullptr ) );
+}
+
 std::vector<std::string> Steam_GameServerNetworkingSockets_ReceiveMessagesOnConnectionStrings( HSteamNetConnection connection, int maxMessages )
 {
 	return ReceiveMessagesOnConnectionStrings( SteamAPI_SteamGameServerNetworkingSockets_SteamAPI(), connection, maxMessages );
 }
 
+SteamworksBytesVector Steam_GameServerNetworkingSockets_ReceiveMessagesOnConnectionBytes( HSteamNetConnection connection, int maxMessages )
+{
+	return ReceiveMessagesOnConnectionStrings( SteamAPI_SteamGameServerNetworkingSockets_SteamAPI(), connection, maxMessages );
+}
+
 std::vector<std::string> Steam_GameServerNetworkingSockets_ReceiveMessagesOnPollGroupStrings( HSteamNetPollGroup pollGroup, int maxMessages )
+{
+	return ReceiveMessagesOnPollGroupStrings( SteamAPI_SteamGameServerNetworkingSockets_SteamAPI(), pollGroup, maxMessages );
+}
+
+SteamworksBytesVector Steam_GameServerNetworkingSockets_ReceiveMessagesOnPollGroupBytes( HSteamNetPollGroup pollGroup, int maxMessages )
 {
 	return ReceiveMessagesOnPollGroupStrings( SteamAPI_SteamGameServerNetworkingSockets_SteamAPI(), pollGroup, maxMessages );
 }
