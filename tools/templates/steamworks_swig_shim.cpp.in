@@ -177,7 +177,8 @@ class NetworkingStatusChangedQueue
 public:
 	void Register()
 	{
-		m_callback.Register( this, &NetworkingStatusChangedQueue::OnStatusChanged );
+		// Python uses SteamAPI_ManualDispatch_*; registering legacy callbacks
+		// after manual dispatch is selected makes Steam emit an API failure.
 	}
 
 	void Clear()
@@ -252,7 +253,8 @@ class LobbyChatQueue
 public:
 	void Register()
 	{
-		m_callback.Register( this, &LobbyChatQueue::OnLobbyChatMessage );
+		// Python uses SteamAPI_ManualDispatch_*; registering legacy callbacks
+		// after manual dispatch is selected makes Steam emit an API failure.
 	}
 
 	void Clear()
