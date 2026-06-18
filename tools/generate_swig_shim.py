@@ -703,6 +703,7 @@ def manual_dispatch_decode_callback_definition(item: dict) -> str:
         [
             f'std::string Steam_ManualDispatch_DecodeCallback{item["name"]}()',
             "{",
+            f'\tRequireCallbackDispatchMode( k_CallbackDispatchModeManual, "Steam_ManualDispatch_DecodeCallback{item["name"]}" );',
             f'\t{item["type"]} callback = {{}};',
             "\tif ( !CopyCurrentManualDispatchCallback( &callback ) )",
             "\t{",
@@ -719,6 +720,7 @@ def manual_dispatch_decode_api_call_result_definition(item: dict) -> str:
         [
             f'std::string Steam_ManualDispatch_DecodeAPICallResult{item["name"]}()',
             "{",
+            f'\tRequireCallbackDispatchMode( k_CallbackDispatchModeManual, "Steam_ManualDispatch_DecodeAPICallResult{item["name"]}" );',
             f'\tif ( g_manualDispatchAPICallResultCallbackID != {item["type"]}::k_iCallback )',
             "\t{",
             "\t\treturn {};",

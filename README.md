@@ -90,6 +90,10 @@ steamworks.Steam_GetLastInitResult()
 steamworks.Steam_GetLastInitError()
 steamworks.Steam_Shutdown()
 steamworks.Steam_RunCallbacks()
+steamworks.Steam_GetCallbackDispatchMode()
+steamworks.Steam_CallbackDispatchModeUninitialized()
+steamworks.Steam_CallbackDispatchModeAutomatic()
+steamworks.Steam_CallbackDispatchModeManual()
 steamworks.Steam_IsSteamRunning()
 steamworks.Steam_RestartAppIfNecessary(app_id)
 steamworks.Steam_ReleaseCurrentThreadMemory()
@@ -374,6 +378,15 @@ while steamworks.Steam_ManualDispatch_GetNextCallback(pipe):
     steamworks.Steam_ManualDispatch_FreeLastCallback(pipe)
 ```
 
+The wrapper supports both callback models, but they are mutually exclusive for
+each Steamworks lifetime. `Steam_ManualDispatch_Init()` selects manual dispatch.
+The first call to `Steam_RunCallbacks()`, `Steam_GameServer_RunCallbacks()`, or
+a higher-level helper that registers a callback selects automatic dispatch.
+Once selected, calls into the other model raise `RuntimeError` until
+`Steam_Shutdown()` or `Steam_GameServer_Shutdown()` resets the mode. The current
+selection is available through `Steam_GetCallbackDispatchMode()` and the three
+`Steam_CallbackDispatchMode*()` constants.
+
 The raw byte accessors remain available, but prefer the typed decoders for
 callback structs that the shim knows about. `SteamNetConnectionStatusChanged`
 decodes the current connection handle, previous state, and the full
@@ -391,8 +404,9 @@ hand-editing the C++ templates; keep only special nested serializers in the
 template.
 
 Manual dispatch replaces `Steam_RunCallbacks()` and
-`Steam_GameServer_RunCallbacks()` for code using that pipe. Do not mix it with
-the higher-level callback shims in the same callback flow.
+`Steam_GameServer_RunCallbacks()` for code using that pipe. Higher-level
+callback shims that depend on automatic dispatch are disabled after manual
+dispatch is selected.
 
 Individual server pings are wrapped with a small polling shim around
 `ISteamMatchmakingPingResponse`:

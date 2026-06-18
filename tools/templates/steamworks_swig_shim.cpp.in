@@ -1,10 +1,20 @@
 #include "steamworks_swig_shim.h"
 
+#include <atomic>
 #include <cstdint>
 #include <cstring>
+#include <stdexcept>
 
 namespace
 {
+enum CallbackDispatchMode
+{
+	k_CallbackDispatchModeUninitialized = 0,
+	k_CallbackDispatchModeAutomatic = 1,
+	k_CallbackDispatchModeManual = 2,
+};
+
+std::atomic<int> g_callbackDispatchMode{ k_CallbackDispatchModeUninitialized };
 SteamErrMsg g_lastInitError = { 0 };
 int g_lastInitResult = 0;
 SteamErrMsg g_lastGameServerInitError = { 0 };
@@ -20,6 +30,58 @@ SteamworksBytes g_gameServerAuthSessionTicketData;
 
 {{ manual_dispatch_serializer_forward_declarations }}
 
+const char * CallbackDispatchModeName( int mode )
+{
+	switch ( mode )
+	{
+	case k_CallbackDispatchModeAutomatic:
+		return "automatic";
+	case k_CallbackDispatchModeManual:
+		return "manual";
+	default:
+		return "uninitialized";
+	}
+}
+
+bool TrySelectCallbackDispatchMode( CallbackDispatchMode mode )
+{
+	int expected = k_CallbackDispatchModeUninitialized;
+	return g_callbackDispatchMode.compare_exchange_strong( expected, mode )
+		|| expected == mode;
+}
+
+void SelectCallbackDispatchMode( CallbackDispatchMode mode, const char *functionName )
+{
+	if ( TrySelectCallbackDispatchMode( mode ) )
+	{
+		return;
+	}
+
+	throw std::logic_error(
+		std::string( functionName )
+		+ " requires " + CallbackDispatchModeName( mode )
+		+ " callback dispatch, but "
+		+ CallbackDispatchModeName( g_callbackDispatchMode.load() )
+		+ " callback dispatch is already active"
+	);
+}
+
+void RequireCallbackDispatchMode( CallbackDispatchMode mode, const char *functionName )
+{
+	const int activeMode = g_callbackDispatchMode.load();
+	if ( activeMode == mode )
+	{
+		return;
+	}
+
+	throw std::logic_error(
+		std::string( functionName )
+		+ " requires " + CallbackDispatchModeName( mode )
+		+ " callback dispatch, but callback dispatch is "
+		+ CallbackDispatchModeName( activeMode )
+	);
+}
+
 class LobbyAsyncState
 {
 public:
@@ -29,6 +91,8 @@ public:
 		m_listComplete = false;
 		m_listIOFailure = false;
 		m_lobbyCount = 0;
+
+		SelectCallbackDispatchMode( k_CallbackDispatchModeAutomatic, "Steam_Lobby_RequestList" );
 
 		ISteamMatchmaking *matchmaking = SteamMatchmaking();
 		if ( !matchmaking )
@@ -59,6 +123,8 @@ public:
 		m_joinedLobbyID = 0;
 		m_joinResponse = 0;
 
+		SelectCallbackDispatchMode( k_CallbackDispatchModeAutomatic, "Steam_Lobby_Join" );
+
 		ISteamMatchmaking *matchmaking = SteamMatchmaking();
 		if ( !matchmaking )
 		{
@@ -87,6 +153,8 @@ public:
 		m_createIOFailure = false;
 		m_createdLobbyID = 0;
 		m_createResult = k_EResultNone;
+
+		SelectCallbackDispatchMode( k_CallbackDispatchModeAutomatic, "Steam_Lobby_Create" );
 
 		ISteamMatchmaking *matchmaking = SteamMatchmaking();
 		if ( !matchmaking )
@@ -177,8 +245,10 @@ class NetworkingStatusChangedQueue
 public:
 	void Register()
 	{
-		// Python uses SteamAPI_ManualDispatch_*; registering legacy callbacks
-		// after manual dispatch is selected makes Steam emit an API failure.
+		if ( TrySelectCallbackDispatchMode( k_CallbackDispatchModeAutomatic ) )
+		{
+			m_callback.Register( this, &NetworkingStatusChangedQueue::OnStatusChanged );
+		}
 	}
 
 	void Clear()
@@ -253,8 +323,10 @@ class LobbyChatQueue
 public:
 	void Register()
 	{
-		// Python uses SteamAPI_ManualDispatch_*; registering legacy callbacks
-		// after manual dispatch is selected makes Steam emit an API failure.
+		if ( TrySelectCallbackDispatchMode( k_CallbackDispatchModeAutomatic ) )
+		{
+			m_callback.Register( this, &LobbyChatQueue::OnLobbyChatMessage );
+		}
 	}
 
 	void Clear()
@@ -710,11 +782,33 @@ int Steam_InitFlat()
 void Steam_Shutdown()
 {
 	SteamAPI_Shutdown();
+	g_callbackDispatchMode.store( k_CallbackDispatchModeUninitialized );
 }
 
 void Steam_RunCallbacks()
 {
+	SelectCallbackDispatchMode( k_CallbackDispatchModeAutomatic, "Steam_RunCallbacks" );
 	SteamAPI_RunCallbacks();
+}
+
+int Steam_GetCallbackDispatchMode()
+{
+	return g_callbackDispatchMode.load();
+}
+
+int Steam_CallbackDispatchModeUninitialized()
+{
+	return k_CallbackDispatchModeUninitialized;
+}
+
+int Steam_CallbackDispatchModeAutomatic()
+{
+	return k_CallbackDispatchModeAutomatic;
+}
+
+int Steam_CallbackDispatchModeManual()
+{
+	return k_CallbackDispatchModeManual;
 }
 
 bool Steam_IsSteamRunning()
@@ -754,11 +848,13 @@ void Steam_SetMiniDumpComment( const char * message )
 
 void Steam_ManualDispatch_Init()
 {
+	SelectCallbackDispatchMode( k_CallbackDispatchModeManual, "Steam_ManualDispatch_Init" );
 	SteamAPI_ManualDispatch_Init();
 }
 
 void Steam_ManualDispatch_RunFrame( HSteamPipe pipe )
 {
+	RequireCallbackDispatchMode( k_CallbackDispatchModeManual, "Steam_ManualDispatch_RunFrame" );
 	SteamAPI_ManualDispatch_RunFrame( pipe );
 }
 
@@ -767,6 +863,8 @@ bool Steam_ManualDispatch_GetNextCallback( HSteamPipe pipe )
 	g_manualDispatchCallback = {};
 	g_manualDispatchCallbackData.clear();
 	g_manualDispatchHasCallback = false;
+
+	RequireCallbackDispatchMode( k_CallbackDispatchModeManual, "Steam_ManualDispatch_GetNextCallback" );
 
 	CallbackMsg_t callback = {};
 	if ( !SteamAPI_ManualDispatch_GetNextCallback( pipe, &callback ) )
@@ -788,26 +886,31 @@ bool Steam_ManualDispatch_GetNextCallback( HSteamPipe pipe )
 
 HSteamUser Steam_ManualDispatch_GetCallbackSteamUser()
 {
+	RequireCallbackDispatchMode( k_CallbackDispatchModeManual, "Steam_ManualDispatch_GetCallbackSteamUser" );
 	return g_manualDispatchHasCallback ? g_manualDispatchCallback.m_hSteamUser : 0;
 }
 
 int Steam_ManualDispatch_GetCallbackID()
 {
+	RequireCallbackDispatchMode( k_CallbackDispatchModeManual, "Steam_ManualDispatch_GetCallbackID" );
 	return g_manualDispatchHasCallback ? g_manualDispatchCallback.m_iCallback : 0;
 }
 
 std::string Steam_ManualDispatch_GetCallbackData()
 {
+	RequireCallbackDispatchMode( k_CallbackDispatchModeManual, "Steam_ManualDispatch_GetCallbackData" );
 	return g_manualDispatchCallbackData;
 }
 
 int Steam_ManualDispatch_GetCallbackSize()
 {
+	RequireCallbackDispatchMode( k_CallbackDispatchModeManual, "Steam_ManualDispatch_GetCallbackSize" );
 	return g_manualDispatchHasCallback ? g_manualDispatchCallback.m_cubParam : 0;
 }
 
 bool Steam_ManualDispatch_CallbackIsAPICallCompleted()
 {
+	RequireCallbackDispatchMode( k_CallbackDispatchModeManual, "Steam_ManualDispatch_CallbackIsAPICallCompleted" );
 	return g_manualDispatchHasCallback && g_manualDispatchCallback.m_iCallback == SteamAPICallCompleted_t::k_iCallback;
 }
 
@@ -855,6 +958,7 @@ bool Steam_ManualDispatch_GetAPICallResult( HSteamPipe pipe, SteamAPICall_t apiC
 	g_manualDispatchAPICallResultData.clear();
 	g_manualDispatchAPICallResultFailed = false;
 	g_manualDispatchAPICallResultCallbackID = 0;
+	RequireCallbackDispatchMode( k_CallbackDispatchModeManual, "Steam_ManualDispatch_GetAPICallResult" );
 	if ( callbackSize <= 0 )
 	{
 		return false;
@@ -884,11 +988,13 @@ bool Steam_ManualDispatch_GetAPICallResult( HSteamPipe pipe, SteamAPICall_t apiC
 
 std::string Steam_ManualDispatch_GetAPICallResultData()
 {
+	RequireCallbackDispatchMode( k_CallbackDispatchModeManual, "Steam_ManualDispatch_GetAPICallResultData" );
 	return g_manualDispatchAPICallResultData;
 }
 
 bool Steam_ManualDispatch_GetAPICallResultFailed()
 {
+	RequireCallbackDispatchMode( k_CallbackDispatchModeManual, "Steam_ManualDispatch_GetAPICallResultFailed" );
 	return g_manualDispatchAPICallResultFailed;
 }
 
@@ -896,7 +1002,11 @@ bool Steam_ManualDispatch_GetAPICallResultFailed()
 
 void Steam_ManualDispatch_FreeLastCallback( HSteamPipe pipe )
 {
-	SteamAPI_ManualDispatch_FreeLastCallback( pipe );
+	RequireCallbackDispatchMode( k_CallbackDispatchModeManual, "Steam_ManualDispatch_FreeLastCallback" );
+	if ( g_manualDispatchHasCallback )
+	{
+		SteamAPI_ManualDispatch_FreeLastCallback( pipe );
+	}
 	g_manualDispatchCallback = {};
 	g_manualDispatchCallbackData.clear();
 	g_manualDispatchHasCallback = false;
@@ -939,10 +1049,12 @@ int Steam_GameServer_InitEx( uint32 ip, uint16 gamePort, uint16 queryPort, int s
 void Steam_GameServer_Shutdown()
 {
 	SteamGameServer_Shutdown();
+	g_callbackDispatchMode.store( k_CallbackDispatchModeUninitialized );
 }
 
 void Steam_GameServer_RunCallbacks()
 {
+	SelectCallbackDispatchMode( k_CallbackDispatchModeAutomatic, "Steam_GameServer_RunCallbacks" );
 	SteamGameServer_RunCallbacks();
 }
 
@@ -1168,6 +1280,10 @@ HSteamNetConnection Steam_NetworkingSockets_ConnectP2PSteamIDNoOptions( uint64_s
 
 void Steam_NetworkingSockets_EnableConnectionStatusCallbacks()
 {
+	SelectCallbackDispatchMode(
+		k_CallbackDispatchModeAutomatic,
+		"Steam_NetworkingSockets_EnableConnectionStatusCallbacks"
+	);
 	g_networkingStatusChangedQueue.Register();
 }
 
@@ -1878,6 +1994,7 @@ int Steam_Lobby_ChatRoomEnterResponseSuccess()
 
 void Steam_Lobby_EnableChatCallbacks()
 {
+	SelectCallbackDispatchMode( k_CallbackDispatchModeAutomatic, "Steam_Lobby_EnableChatCallbacks" );
 	g_lobbyChatQueue.Register();
 }
 
