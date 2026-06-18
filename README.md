@@ -1,7 +1,8 @@
 # Steamworks SWIG Python Wrapper
 
 Experimental Python bindings for the Steamworks SDK using SWIG and Valve's flat
-Steamworks API.
+Steamworks API. This project currently targets SDK v164 and may require changes to
+build against a different version.
 
 The wrapper is generated from:
 
@@ -33,7 +34,9 @@ Windows x86:   sdk/redistributable_bin/steam_api.dll
 
 ## SDK Layout
 
-This project expects the Steamworks SDK to be available at:
+The Steamworks SDK is not included in this repository or its source
+distribution. Obtain an authorized copy directly from Valve through Steamworks.
+This project expects that local SDK to be available at:
 
 ```text
 sdk/
@@ -41,6 +44,9 @@ sdk/
 
 For this repo, `sdk` may be a symlink to a versioned SDK directory such as
 `sdk_v164`.
+
+Do not commit, vendor, or republish the SDK headers, API JSON, examples, tools,
+or other SDK source files with this project.
 
 ## Install
 
@@ -53,6 +59,21 @@ pip install .
 The install step regenerates the SWIG shim from Valve's `steam_api.json`, runs
 SWIG, builds the Python extension, and bundles the platform-specific Steamworks
 runtime library into the installed package.
+
+Source archives contain only SteamworksSwig project files. Consequently, a
+source archive cannot be built directly by `pip` until the developer has
+unpacked it and supplied their separately obtained SDK at `sdk/`.
+
+Release artifacts should be platform-specific binary wheels. Each wheel
+contains only the Steamworks runtime for its target platform from
+`redistributable_bin`; it must not contain SDK headers, API JSON, examples, or
+other Valve SDK source files.
+
+## Licensing
+
+Original SteamworksSwig code is licensed under BSD-3-Clause. Valve's Steamworks
+runtime libraries are excluded from that grant and remain governed by Valve's
+Steamworks terms. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Smoke Test
 

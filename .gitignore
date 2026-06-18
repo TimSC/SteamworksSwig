@@ -1,0 +1,15 @@
+# Valve's Steamworks SDK is obtained separately and must never be committed.
+/sdk
+/sdk_*/
+
+# Generated and local build artifacts.
+/build/
+/dist/
+/generated/
+/*.egg-info/
+/**/__pycache__/
+*.py[cod]
+*.so
+*.dylib
+*.dll
+

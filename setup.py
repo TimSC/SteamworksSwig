@@ -85,7 +85,24 @@ STEAM_CONFIG = steamworks_platform_config()
 STEAM_RUNTIME_LIB = Path(STEAM_CONFIG["runtime_lib"])
 
 
+def require_local_sdk() -> None:
+    required = [
+        API_JSON,
+        STEAM_INCLUDE / "steam" / "steam_api_flat.h",
+        STEAM_RUNTIME_LIB,
+    ]
+    missing = [path for path in required if not path.is_file()]
+    if missing:
+        missing_lines = "\n".join(f"  - {path}" for path in missing)
+        raise RuntimeError(
+            "The Steamworks SDK is not distributed with SteamworksSwig.\n"
+            "Obtain the SDK directly from Valve, then place or symlink it at "
+            f"{SDK_DIR}.\nMissing required files:\n{missing_lines}"
+        )
+
+
 def generate_sources() -> None:
+    require_local_sdk()
     GENERATED_DIR.mkdir(parents=True, exist_ok=True)
     subprocess.check_call(
         [
@@ -116,9 +133,12 @@ def generate_sources() -> None:
 class SteamworksBuildPy(build_py):
     def run(self) -> None:
         generate_sources()
-        super().run()
 
         package_dir = Path(self.build_lib) / "steamworks"
+        if package_dir.exists():
+            shutil.rmtree(package_dir)
+        super().run()
+
         package_dir.mkdir(parents=True, exist_ok=True)
         shutil.copy2(SWIG_PROXY, package_dir / "steamworks.py")
         shutil.copy2(STEAM_RUNTIME_LIB, package_dir / STEAM_RUNTIME_LIB.name)
@@ -152,7 +172,7 @@ setup(
     version="0.1.0",
     description="Generated Python bindings for the Steamworks SDK flat API",
     license="BSD-3-Clause",
-    license_files=["LICENSE"],
+    license_files=["LICENSE", "THIRD_PARTY_NOTICES.md"],
     classifiers=[
         "License :: OSI Approved :: BSD License",
     ],

@@ -2,6 +2,10 @@ BSD 3-Clause License
 
 Copyright (c) 2026, SteamworksSwig contributors
 
+This license applies only to the original SteamworksSwig project code. It does
+not apply to Valve Steamworks SDK Redistributables that may be bundled in binary
+packages. See THIRD_PARTY_NOTICES.md.
+
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
 

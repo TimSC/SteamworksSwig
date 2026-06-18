@@ -1,12 +1,21 @@
+include LICENSE
+include THIRD_PARTY_NOTICES.md
+include README.md
+include MANIFEST.in
+include pyproject.toml
 include setup.py
-include tools/generate_swig_shim.py
+include *.py
+include *.md
 recursive-include python *.py
-recursive-include sdk/public/steam *.h *.json
-include sdk/redistributable_bin/linux32/libsteam_api.so
-include sdk/redistributable_bin/linux64/libsteam_api.so
-include sdk/redistributable_bin/linuxarm64/libsteam_api.so
-include sdk/redistributable_bin/osx/libsteam_api.dylib
-include sdk/redistributable_bin/steam_api.dll
-include sdk/redistributable_bin/steam_api.lib
-include sdk/redistributable_bin/win64/steam_api64.dll
-include sdk/redistributable_bin/win64/steam_api64.lib
+recursive-include tools *.py *.in
+
+# Valve permits redistribution of redistributable_bin with Licensee Software,
+# but the source distribution intentionally contains no Valve SDK material.
+prune sdk
+prune sdk_*
+prune generated
+prune build
+prune dist
+prune *.egg-info
+global-exclude *.py[cod]
+global-exclude __pycache__
