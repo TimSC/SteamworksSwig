@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 
 
@@ -546,13 +547,27 @@ def wrapper_name(classname: str, methodname: str) -> str:
     return f"Steam_{classname}_{methodname}"
 
 
-def iter_wrappable_methods(api: dict):
-    for interface in api.get("interfaces", []):
-        accessors = interface.get("accessors") or []
-        if not accessors:
-            continue
+def declared_identifiers(header_text: str) -> set[str]:
+    return set(re.findall(r"\b(?:SteamAPI|SteamGameServer)_[A-Za-z0-9_]+\b", header_text))
 
-        accessor = accessors[0].get("name_flat")
+
+def interface_accessor(interface: dict, flat_identifiers: set[str]) -> str | None:
+    for accessor in interface.get("accessors") or []:
+        versioned = accessor.get("name_flat")
+        if versioned and versioned in flat_identifiers:
+            return versioned
+
+        unversioned_name = accessor.get("name")
+        if unversioned_name:
+            unversioned = f"SteamAPI_{unversioned_name}"
+            if unversioned in flat_identifiers:
+                return unversioned
+    return None
+
+
+def iter_wrappable_methods(api: dict, flat_identifiers: set[str]):
+    for interface in api.get("interfaces", []):
+        accessor = interface_accessor(interface, flat_identifiers)
         classname = interface.get("classname")
         if not accessor or not classname:
             continue
@@ -561,7 +576,12 @@ def iter_wrappable_methods(api: dict):
             methodname = method.get("methodname")
             flat_name = method.get("methodname_flat")
             return_type = flat_type(method, "returntype")
-            if not methodname or not flat_name or return_type is None:
+            if (
+                not methodname
+                or not flat_name
+                or flat_name not in flat_identifiers
+                or return_type is None
+            ):
                 continue
 
             params = []
@@ -764,8 +784,14 @@ def render_template(template_name: str, **values: str) -> str:
     return rendered
 
 
-def generate(api: dict, output_dir: Path) -> None:
-    methods = sorted(iter_wrappable_methods(api), key=lambda item: item["wrapper_name"])
+def generate(api: dict, output_dir: Path, steam_include: Path) -> None:
+    flat_header = steam_include / "steam" / "steam_api_flat.h"
+    flat_header_text = flat_header.read_text(encoding="utf-8", errors="replace")
+    flat_identifiers = declared_identifiers(flat_header_text)
+    methods = sorted(
+        iter_wrappable_methods(api, flat_identifiers),
+        key=lambda item: item["wrapper_name"],
+    )
     output_dir.mkdir(parents=True, exist_ok=True)
 
     header = output_dir / "steamworks_swig_shim.h"
@@ -793,6 +819,9 @@ def generate(api: dict, output_dir: Path) -> None:
             manual_dispatch_serializer_forward_declarations=manual_dispatch_serializer_forward_declarations(),
             manual_dispatch_serializers=manual_dispatch_serializers(),
             manual_dispatch_definitions=manual_dispatch_definitions(),
+            connection_realtime_optional_fields=connection_realtime_optional_fields(
+                steam_include
+            ),
         )
         + "\n",
         encoding="utf-8",
@@ -807,7 +836,21 @@ def generate(api: dict, output_dir: Path) -> None:
         encoding="utf-8",
     )
 
-    print(f"Generated {len(methods)} wrapper functions in {output_dir}")
+    print(
+        f"Generated {len(methods)} wrapper functions in {output_dir} "
+        f"using {flat_header}"
+    )
+
+
+def connection_realtime_optional_fields(steam_include: Path) -> str:
+    networking_types = steam_include / "steam" / "steamnetworkingtypes.h"
+    header_text = networking_types.read_text(encoding="utf-8", errors="replace")
+    if "m_usecMaxJitter" not in header_text:
+        return ""
+    return (
+        '\tserialized += "\\tmax_jitter_usec=" '
+        "+ std::to_string( status.m_usecMaxJitter );"
+    )
 
 
 def swig_type_declarations(api: dict, methods: list[dict]) -> list[str]:
@@ -856,11 +899,18 @@ def swig_type_declarations(api: dict, methods: list[dict]) -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--api-json", default="sdk/public/steam/steam_api.json")
+    parser.add_argument("--steam-include")
     parser.add_argument("--output-dir", default="generated")
     args = parser.parse_args()
 
-    api = json.loads(Path(args.api_json).read_text(encoding="utf-8"))
-    generate(api, Path(args.output_dir))
+    api_json = Path(args.api_json)
+    steam_include = (
+        Path(args.steam_include)
+        if args.steam_include
+        else api_json.parent.parent
+    )
+    api = json.loads(api_json.read_text(encoding="utf-8"))
+    generate(api, Path(args.output_dir), steam_include)
     return 0
 
 

@@ -1,6 +1,7 @@
 # Valve's Steamworks SDK is obtained separately and must never be committed.
 /sdk
 /sdk_*/
+/steamworks_sdk_*.zip
 
 # Generated and local build artifacts.
 /build/
@@ -12,4 +13,3 @@
 *.so
 *.dylib
 *.dll
-

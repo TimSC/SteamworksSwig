@@ -775,7 +775,9 @@ int Steam_InitEx()
 int Steam_InitFlat()
 {
 	g_lastInitError[0] = '\0';
-	g_lastInitResult = static_cast<int>( SteamAPI_InitFlat( &g_lastInitError ) );
+	// SteamAPI_InitFlat was added after SteamAPI_InitEx. Use the common
+	// implementation so this wrapper remains available with older SDKs.
+	g_lastInitResult = static_cast<int>( SteamAPI_InitEx( &g_lastInitError ) );
 	return g_lastInitResult;
 }
 
@@ -1388,7 +1390,7 @@ std::string Steam_NetworkingSockets_GetConnectionRealTimeStatusString( HSteamNet
 	serialized += "\tpending_reliable=" + std::to_string( status.m_cbPendingReliable );
 	serialized += "\tsent_unacked_reliable=" + std::to_string( status.m_cbSentUnackedReliable );
 	serialized += "\tqueue_time_usec=" + std::to_string( status.m_usecQueueTime );
-	serialized += "\tmax_jitter_usec=" + std::to_string( status.m_usecMaxJitter );
+{{ connection_realtime_optional_fields }}
 	return serialized;
 }
 

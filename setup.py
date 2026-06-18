@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
@@ -12,7 +13,7 @@ from setuptools.command.build_py import build_py
 
 
 ROOT = Path(__file__).parent.resolve()
-SDK_DIR = ROOT / "sdk"
+SDK_DIR = Path(os.environ.get("STEAMWORKS_SDK_DIR", ROOT / "sdk")).expanduser().resolve()
 STEAM_INCLUDE = SDK_DIR / "public"
 GENERATED_DIR = ROOT / "generated"
 GENERATOR = ROOT / "tools" / "generate_swig_shim.py"
@@ -110,6 +111,8 @@ def generate_sources() -> None:
             str(GENERATOR),
             "--api-json",
             str(API_JSON),
+            "--steam-include",
+            str(STEAM_INCLUDE),
             "--output-dir",
             str(GENERATED_DIR),
         ],
@@ -173,9 +176,6 @@ setup(
     description="Generated Python bindings for the Steamworks SDK flat API",
     license="BSD-3-Clause",
     license_files=["LICENSE", "THIRD_PARTY_NOTICES.md"],
-    classifiers=[
-        "License :: OSI Approved :: BSD License",
-    ],
     packages=["steamworks"],
     package_dir={"steamworks": "python/steamworks"},
     package_data={"steamworks": ["libsteam_api.so", "libsteam_api.dylib", "steam_api.dll", "steam_api64.dll"]},

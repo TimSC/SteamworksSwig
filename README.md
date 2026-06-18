@@ -45,6 +45,19 @@ sdk/
 For this repo, `sdk` may be a symlink to a versioned SDK directory such as
 `sdk_v164`.
 
+Alternatively, set `STEAMWORKS_SDK_DIR` to build against a specific installed
+SDK without changing the symlink:
+
+```bash
+STEAMWORKS_SDK_DIR=/path/to/steamworks/sdk_158a pip install .
+```
+
+The generator validates each JSON-described interface accessor and method
+against that SDK version's actual `steam_api_flat.h`. This handles SDK releases
+whose `steam_api.json` contains entries that are absent from their shipped
+headers. Functions unavailable in the selected SDK are omitted from that build.
+Builds are currently verified against Steamworks SDK 1.58a, 1.59, and 1.64.
+
 Do not commit, vendor, or republish the SDK headers, API JSON, examples, tools,
 or other SDK source files with this project.
 
