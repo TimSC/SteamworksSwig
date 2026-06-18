@@ -6,6 +6,7 @@
 # Generated and local build artifacts.
 /build/
 /dist/
+/wheelhouse/
 /generated/
 /*.egg-info/
 /**/__pycache__/

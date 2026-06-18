@@ -98,7 +98,11 @@ def require_local_sdk() -> None:
         raise RuntimeError(
             "The Steamworks SDK is not distributed with SteamworksSwig.\n"
             "Obtain the SDK directly from Valve, then place or symlink it at "
-            f"{SDK_DIR}.\nMissing required files:\n{missing_lines}"
+            f"{SDK_DIR}, or set STEAMWORKS_SDK_DIR to its path.\n"
+            "For release artifacts, use tools/build_distributions.py; bare "
+            "`python -m build` attempts to build a wheel from the intentionally "
+            "SDK-free source archive.\n"
+            f"Missing required files:\n{missing_lines}"
         )
 
 

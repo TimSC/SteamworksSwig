@@ -82,6 +82,75 @@ contains only the Steamworks runtime for its target platform from
 `redistributable_bin`; it must not contain SDK headers, API JSON, examples, or
 other Valve SDK source files.
 
+Build release artifacts with:
+
+```bash
+python3 tools/build_distributions.py --sdk-dir /path/to/steamworks/sdk --clean
+```
+
+This runs the two required builds separately:
+
+```bash
+STEAMWORKS_SDK_DIR=/path/to/steamworks/sdk python3 -m build --sdist
+STEAMWORKS_SDK_DIR=/path/to/steamworks/sdk python3 -m build --wheel
+```
+
+Do not use bare `python3 -m build` for this project. Its default workflow first
+creates the intentionally SDK-free source archive and then attempts to compile
+a wheel from that isolated archive. Such a wheel build cannot succeed unless
+the external SDK location is explicitly available inside the second build.
+
+### Linux wheels for PyPI
+
+PyPI does not accept generic `linux_x86_64` wheels. Build repaired manylinux
+wheels using Docker or Podman:
+
+```bash
+tools/build_manylinux_wheels.sh --sdk-dir sdk
+```
+
+By default this uses `quay.io/pypa/manylinux2014_x86_64` and builds CPython
+3.9-3.13 wheels into `wheelhouse/`. Limit the matrix when required:
+
+```bash
+tools/build_manylinux_wheels.sh \
+  --sdk-dir sdk_158a \
+  --python-tags "cp311-cp311 cp312-cp312"
+```
+
+Use Podman with `--engine podman`. Validate and upload the repaired wheels:
+
+```bash
+python3 -m twine check wheelhouse/*.whl
+python3 -m twine upload wheelhouse/*.whl
+```
+
+### Windows wheels for PyPI
+
+Run the PowerShell build script on 64-bit Windows with Visual Studio Build Tools,
+SWIG, and the Python Launcher installed:
+
+```powershell
+.\tools\build_windows_wheels.ps1 -SdkDir C:\path\to\steamworks\sdk
+```
+
+It builds CPython 3.9-3.13 `win_amd64` wheels into `wheelhouse`. Build a smaller
+matrix with:
+
+```powershell
+.\tools\build_windows_wheels.ps1 `
+  -SdkDir C:\path\to\steamworks\sdk `
+  -PythonVersions 3.11,3.12
+```
+
+The script expects each selected 64-bit Python version to be registered with
+the Windows `py.exe` launcher. It validates each wheel with Twine and checks
+that the resulting filename has a `win_amd64` platform tag. Upload with:
+
+```powershell
+py -3.12 -m twine upload wheelhouse\*.whl
+```
+
 ## Licensing
 
 Original SteamworksSwig code is licensed under BSD-3-Clause. Valve's Steamworks
