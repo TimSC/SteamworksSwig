@@ -176,7 +176,7 @@ extension = Extension(
 
 setup(
     name="steamworks-swig",
-    version="0.1.0",
+    version="0.1.1",
     description="Generated Python bindings for the Steamworks SDK flat API",
     license="BSD-3-Clause",
     license_files=["LICENSE", "THIRD_PARTY_NOTICES.md"],
