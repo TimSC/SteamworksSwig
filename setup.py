@@ -175,11 +175,6 @@ extension = Extension(
 
 
 setup(
-    name="steamworks-swig",
-    version="0.1.1",
-    description="Generated Python bindings for the Steamworks SDK flat API",
-    license="BSD-3-Clause",
-    license_files=["LICENSE", "THIRD_PARTY_NOTICES.md"],
     packages=["steamworks"],
     package_dir={"steamworks": "python/steamworks"},
     package_data={"steamworks": ["libsteam_api.so", "libsteam_api.dylib", "steam_api.dll", "steam_api64.dll"]},
@@ -188,5 +183,4 @@ setup(
         "build_py": SteamworksBuildPy,
         "build_ext": SteamworksBuildExt,
     },
-    python_requires=">=3.9",
 )

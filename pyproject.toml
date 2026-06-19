@@ -5,3 +5,20 @@ requires = [
     "swig>=4.4",
 ]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "steamworks-swig"
+version = "0.1.1"
+description = "Generated Python bindings for the Steamworks SDK flat API"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "BSD-3-Clause"
+license-files = [
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+]
+
+[project.urls]
+Homepage = "https://github.com/TimSC/SteamworksSwig"
+Repository = "https://github.com/TimSC/SteamworksSwig"
+Issues = "https://github.com/TimSC/SteamworksSwig/issues"
