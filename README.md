@@ -11,17 +11,6 @@ sdk/public/steam/steam_api.json
 sdk/public/steam/steam_api_flat.h
 ```
 
-At runtime it links against the Steamworks redistributable for the current
-platform:
-
-```text
-Linux x86_64:  sdk/redistributable_bin/linux64/libsteam_api.so
-Linux arm64:   sdk/redistributable_bin/linuxarm64/libsteam_api.so
-macOS:         sdk/redistributable_bin/osx/libsteam_api.dylib
-Windows x64:   sdk/redistributable_bin/win64/steam_api64.dll
-Windows x86:   sdk/redistributable_bin/steam_api.dll
-```
-
 ## Requirements
 
 - Linux, macOS, or Windows
@@ -156,6 +145,38 @@ py -3.12 -m twine upload wheelhouse\*.whl
 Original SteamworksSwig code is licensed under BSD-3-Clause. Valve's Steamworks
 runtime libraries are excluded from that grant and remain governed by Valve's
 Steamworks terms. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+
+## Other Language Targets
+
+Although this project currently generates Python bindings, its C++ shim and
+most of its SWIG interface declarations can be adapted to other SWIG-supported
+languages, such as C#, Java, Ruby, Lua, or JavaScript.
+
+Supporting another target requires a separate language-specific build and
+package layer. Exception mapping, callback/event delivery, native object
+ownership, string and buffer typemaps, and runtime-library loading must be
+reviewed for that language. The manual-versus-automatic callback dispatch
+restriction must also remain enforced.
+
+Go is possible through SWIG, but a direct cgo wrapper may provide a simpler
+interface and more predictable ownership semantics.
+
+The same Steamworks SDK distribution rules apply to every target language:
+obtain the SDK separately from Valve, do not redistribute SDK headers, API JSON,
+examples, or tools, and distribute only the permitted platform runtime files
+from `redistributable_bin` with generated or compiled wrapper outputs.
+
+At runtime it links against the Steamworks redistributable for the current
+platform:
+
+```text
+Linux x86_64:  sdk/redistributable_bin/linux64/libsteam_api.so
+Linux arm64:   sdk/redistributable_bin/linuxarm64/libsteam_api.so
+macOS:         sdk/redistributable_bin/osx/libsteam_api.dylib
+Windows x64:   sdk/redistributable_bin/win64/steam_api64.dll
+Windows x86:   sdk/redistributable_bin/steam_api.dll
+```
 
 ## Smoke Test
 
