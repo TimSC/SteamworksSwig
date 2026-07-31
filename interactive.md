@@ -1,10 +1,10 @@
 # Interactive Demo
 
-`interactive.py` is an interactive lobby/P2P demo that keeps Steam callbacks
+`examples/python/interactive.py` is an interactive lobby/P2P demo that keeps Steam callbacks
 running while a background thread waits for console commands.
 
 ```bash
-python3 interactive.py
+python3 examples/python/interactive.py
 ```
 
 ## Host

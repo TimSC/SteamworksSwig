@@ -22,6 +22,93 @@ FLAT_TYPEDEFS = {
 }
 TEMPLATE_DIR = Path(__file__).with_name("templates")
 
+C_TYPE_MAP = {
+    "void": "void",
+    "bool": "bool",
+    "char": "char",
+    "const char *": "const char *",
+    "float": "float",
+    "double": "double",
+    "int": "int32_t",
+    "unsigned int": "uint32_t",
+    "short": "int16_t",
+    "unsigned short": "uint16_t",
+    "signed char": "int8_t",
+    "unsigned char": "uint8_t",
+    "long long": "int64_t",
+    "unsigned long long": "uint64_t",
+    "int8": "int8_t",
+    "uint8": "uint8_t",
+    "int16": "int16_t",
+    "uint16": "uint16_t",
+    "int32": "int32_t",
+    "uint32": "uint32_t",
+    "int64": "int64_t",
+    "uint64": "uint64_t",
+    "lint64": "int64_t",
+    "ulint64": "uint64_t",
+    "uint64_steamid": "uint64_t",
+    "uint64_gameid": "uint64_t",
+}
+
+C_MANUAL_FUNCTIONS = [
+    ("bool", "Steam_Init", []),
+    ("int", "Steam_InitEx", []),
+    ("int", "Steam_InitFlat", []),
+    ("void", "Steam_Shutdown", []),
+    ("void", "Steam_RunCallbacks", []),
+    ("int", "Steam_GetCallbackDispatchMode", []),
+    ("int", "Steam_CallbackDispatchModeUninitialized", []),
+    ("int", "Steam_CallbackDispatchModeAutomatic", []),
+    ("int", "Steam_CallbackDispatchModeManual", []),
+    ("bool", "Steam_IsSteamRunning", []),
+    ("bool", "Steam_RestartAppIfNecessary", [("AppId_t", "appID")]),
+    ("void", "Steam_ReleaseCurrentThreadMemory", []),
+    ("const char *", "Steam_GetSteamInstallPath", []),
+    ("void", "Steam_SetTryCatchCallbacks", [("bool", "enabled")]),
+    ("void", "Steam_SetMiniDumpComment", [("const char *", "message")]),
+    ("HSteamPipe", "Steam_GetHSteamPipe", []),
+    ("HSteamUser", "Steam_GetHSteamUser", []),
+    ("int", "Steam_GetLastInitResult", []),
+    ("const char *", "Steam_GetLastInitError", []),
+    (
+        "bool",
+        "Steam_GameServer_Init",
+        [
+            ("uint32", "ip"),
+            ("uint16", "gamePort"),
+            ("uint16", "queryPort"),
+            ("int", "serverMode"),
+            ("const char *", "versionString"),
+        ],
+    ),
+    (
+        "int",
+        "Steam_GameServer_InitEx",
+        [
+            ("uint32", "ip"),
+            ("uint16", "gamePort"),
+            ("uint16", "queryPort"),
+            ("int", "serverMode"),
+            ("const char *", "versionString"),
+        ],
+    ),
+    ("void", "Steam_GameServer_Shutdown", []),
+    ("void", "Steam_GameServer_RunCallbacks", []),
+    ("void", "Steam_GameServer_ReleaseCurrentThreadMemory", []),
+    ("bool", "Steam_GameServer_GlobalBSecure", []),
+    ("uint64", "Steam_GameServer_GlobalGetSteamID", []),
+    ("HSteamPipe", "Steam_GameServer_GetHSteamPipe", []),
+    ("HSteamUser", "Steam_GameServer_GetHSteamUser", []),
+    ("int", "Steam_GameServer_GetLastInitResult", []),
+    ("const char *", "Steam_GameServer_GetLastInitError", []),
+    ("int", "Steam_ServerModeInvalid", []),
+    ("int", "Steam_ServerModeNoAuthentication", []),
+    ("int", "Steam_ServerModeAuthentication", []),
+    ("int", "Steam_ServerModeAuthenticationAndSecure", []),
+    ("uint16", "Steam_GameServer_QueryPortShared", []),
+]
+
 
 MANUAL_DISPATCH_CALLBACKS = [
     {
@@ -635,6 +722,153 @@ def definition(method: dict) -> str:
     return "\n".join(lines)
 
 
+def api_typedef_map(api: dict) -> dict[str, str]:
+    typedefs = dict(C_TYPE_MAP)
+    for item in api.get("typedefs", []):
+        alias = item.get("typedef")
+        target = item.get("type")
+        if not alias or not target:
+            continue
+        typedefs[alias] = normalize_type(target)
+    for alias, target in FLAT_TYPEDEFS.items():
+        typedefs[alias] = normalize_type(target)
+    return typedefs
+
+
+def api_enum_names(api: dict) -> set[str]:
+    return {
+        item["enumname"]
+        for item in api.get("enums", [])
+        if item.get("enumname")
+    }
+
+
+def resolve_c_type(type_name: str, typedefs: dict[str, str], enums: set[str]) -> str | None:
+    type_name = normalize_type(type_name)
+    if type_name.startswith("const ") and "*" not in type_name:
+        type_name = type_name[len("const ") :]
+    if type_name in enums:
+        return "int32_t"
+    if type_name in C_TYPE_MAP:
+        return C_TYPE_MAP[type_name]
+
+    seen = set()
+    current = type_name
+    while current in typedefs and current not in seen:
+        seen.add(current)
+        current = normalize_type(typedefs[current])
+        if current in enums:
+            return "int32_t"
+        if current in C_TYPE_MAP:
+            return C_TYPE_MAP[current]
+        if "*" in current or "&" in current or "[" in current or "]" in current or "(" in current:
+            return None
+
+    return None
+
+
+def c_return(method: dict, expression: str, c_type: str, cpp_type: str) -> str:
+    if cpp_type == "void":
+        return f"\t{expression};"
+    if c_type == cpp_type:
+        return f"\treturn {expression};"
+    return f"\treturn static_cast<{c_type}>( {expression} );"
+
+
+def c_argument(param_type: str, param_name: str, c_type: str) -> str:
+    if c_type == param_type:
+        return param_name
+    if param_type == "const char *":
+        return param_name
+    return f"static_cast<{param_type}>( {param_name} )"
+
+
+def c_wrapper_name(method: dict) -> str:
+    return f'SWS_{method.get("flat_name", method["wrapper_name"])}'
+
+
+def c_method(method: dict, typedefs: dict[str, str], enums: set[str]) -> dict | None:
+    return_type = method["return_type"]
+    c_return_type = resolve_c_type(return_type, typedefs, enums)
+    if c_return_type is None:
+        return None
+
+    params = []
+    for param_type, param_name in method["params"]:
+        c_param_type = resolve_c_type(param_type, typedefs, enums)
+        if c_param_type is None:
+            return None
+        params.append(
+            {
+                "cpp_type": param_type,
+                "c_type": c_param_type,
+                "name": param_name,
+            }
+        )
+
+    return {
+        "cpp_name": method["wrapper_name"],
+        "c_name": c_wrapper_name(method),
+        "cpp_return_type": return_type,
+        "c_return_type": c_return_type,
+        "params": params,
+    }
+
+
+def c_manual_method(item: tuple, typedefs: dict[str, str], enums: set[str]) -> dict | None:
+    return_type, name, params = item
+    method = {
+        "wrapper_name": name,
+        "return_type": normalize_type(return_type),
+        "params": [(normalize_type(param_type), param_name) for param_type, param_name in params],
+    }
+    return c_method(method, typedefs, enums)
+
+
+def c_signature(method: dict) -> str:
+    params = ", ".join(
+        f'{param["c_type"]} {param["name"]}' for param in method["params"]
+    )
+    if not params:
+        params = "void"
+    return f'{method["c_return_type"]} {method["c_name"]}( {params} )'
+
+
+def c_declaration(method: dict) -> str:
+    return f"SWS_API {c_signature(method)};"
+
+
+def c_definition(method: dict) -> str:
+    args = ", ".join(
+        c_argument(param["cpp_type"], param["name"], param["c_type"])
+        for param in method["params"]
+    )
+    expression = f'{method["cpp_name"]}( {args} )' if args else f'{method["cpp_name"]}()'
+    lines = [
+        c_signature(method),
+        "{",
+        c_return(method, expression, method["c_return_type"], method["cpp_return_type"]),
+        "}",
+    ]
+    return "\n".join(lines)
+
+
+def c_api_methods(api: dict, methods: list[dict]) -> list[dict]:
+    typedefs = api_typedef_map(api)
+    enums = api_enum_names(api)
+    manual = [
+        method
+        for item in C_MANUAL_FUNCTIONS
+        if (method := c_manual_method(item, typedefs, enums)) is not None
+    ]
+    generated = [
+        method
+        for item in methods
+        if (method := c_method(item, typedefs, enums)) is not None
+    ]
+    return sorted(manual + generated, key=lambda item: item["c_name"])
+
+
 def manual_dispatch_entries() -> list[dict]:
     entries = []
     seen_types = set()
@@ -797,10 +1031,15 @@ def generate(api: dict, output_dir: Path, steam_include: Path) -> None:
     header = output_dir / "steamworks_swig_shim.h"
     source = output_dir / "steamworks_swig_shim.cpp"
     interface = output_dir / "steamworks.i"
+    c_header = output_dir / "steamworks_c_api.h"
+    c_source = output_dir / "steamworks_c_api.cpp"
 
     generated_declarations = "\n".join(declaration(method) for method in methods)
     generated_definitions = "\n\n".join(definition(method) for method in methods)
     swig_declarations = "\n".join(swig_type_declarations(api, methods))
+    c_methods = c_api_methods(api, methods)
+    c_declarations = "\n".join(c_declaration(method) for method in c_methods)
+    c_definitions = "\n\n".join(c_definition(method) for method in c_methods)
 
     header.write_text(
         render_template(
@@ -851,8 +1090,26 @@ def generate(api: dict, output_dir: Path, steam_include: Path) -> None:
         encoding="utf-8",
     )
 
+    c_header.write_text(
+        render_template(
+            "steamworks_c_api.h.in",
+            c_declarations=c_declarations,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    c_source.write_text(
+        render_template(
+            "steamworks_c_api.cpp.in",
+            c_definitions=c_definitions,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
     print(
-        f"Generated {len(methods)} wrapper functions in {output_dir} "
+        f"Generated {len(methods)} wrapper functions and {len(c_methods)} C ABI functions in {output_dir} "
         f"using {flat_header}"
     )
 

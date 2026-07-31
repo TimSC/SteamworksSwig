@@ -1,0 +1,32 @@
+#define SWS_BUILD_SHARED 1
+#include "steamworks_c_api.h"
+#include "steamworks_swig_shim.h"
+
+#include <cstdlib>
+#include <cstring>
+#include <string>
+
+namespace
+{
+SWS_String CopyStringForC( const std::string &value )
+{
+	SWS_String result = {};
+	char *data = static_cast<char *>( std::malloc( value.size() + 1 ) );
+	if ( !data )
+	{
+		return result;
+	}
+	std::memcpy( data, value.data(), value.size() );
+	data[value.size()] = '\0';
+	result.data = data;
+	result.size = value.size();
+	return result;
+}
+}
+
+void SWS_FreeString( SWS_String value )
+{
+	std::free( const_cast<char *>( value.data ) );
+}
+
+{{ c_definitions }}

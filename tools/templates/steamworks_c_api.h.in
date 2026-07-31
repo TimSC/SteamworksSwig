@@ -1,0 +1,31 @@
+#pragma once
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#if defined( _WIN32 ) && defined( SWS_BUILD_SHARED )
+#define SWS_API __declspec( dllexport )
+#elif defined( __GNUC__ )
+#define SWS_API __attribute__ ((visibility("default")))
+#else
+#define SWS_API
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct SWS_String
+{
+	const char *data;
+	size_t size;
+} SWS_String;
+
+SWS_API void SWS_FreeString( SWS_String value );
+
+{{ c_declarations }}
+
+#ifdef __cplusplus
+}
+#endif

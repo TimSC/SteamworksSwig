@@ -6,6 +6,7 @@ include pyproject.toml
 include setup.py
 include *.py
 include *.md
+recursive-include examples *.go *.py
 recursive-include python *.py
 recursive-include tools *.py *.in
 
