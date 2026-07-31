@@ -17,6 +17,7 @@ recursive-include tools *.py *.in
 prune sdk
 prune sdk_*
 prune generated
+exclude go/steamworks/generated.go
 prune go/steamworks/raw
 prune build
 prune dist

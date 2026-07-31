@@ -192,6 +192,27 @@ public:
 	uint64_steamid GetJoinedLobbyID() const { return m_joinedLobbyID; }
 	uint32 GetJoinResponse() const { return m_joinResponse; }
 
+	void Clear()
+	{
+		m_listCallResult.Cancel();
+		m_joinCallResult.Cancel();
+		m_createCallResult.Cancel();
+		m_listPending = false;
+		m_listComplete = false;
+		m_listIOFailure = false;
+		m_lobbyCount = 0;
+		m_createPending = false;
+		m_createComplete = false;
+		m_createIOFailure = false;
+		m_createdLobbyID = 0;
+		m_createResult = k_EResultNone;
+		m_joinPending = false;
+		m_joinComplete = false;
+		m_joinIOFailure = false;
+		m_joinedLobbyID = 0;
+		m_joinResponse = 0;
+	}
+
 private:
 	void OnLobbyMatchList( LobbyMatchList_t *result, bool ioFailure )
 	{
@@ -1893,6 +1914,11 @@ std::string Steam_Lobby_GetListLobbyNameByIndex( int index )
 	}
 	const char *name = matchmaking->GetLobbyData( CSteamID( lobbyID ), "name" );
 	return name ? std::string( name ) : std::string();
+}
+
+void Steam_Lobby_ClearAsyncState()
+{
+	g_lobbyAsyncState.Clear();
 }
 
 std::vector<std::string> Steam_Lobby_GetDataEntries( uint64_steamid lobbyID )

@@ -49,6 +49,7 @@ C_TYPE_MAP = {
     "ulint64": "uint64_t",
     "uint64_steamid": "uint64_t",
     "uint64_gameid": "uint64_t",
+    "std::string": "SWS_String",
 }
 
 C_MANUAL_FUNCTIONS = [
@@ -107,6 +108,42 @@ C_MANUAL_FUNCTIONS = [
     ("int", "Steam_ServerModeAuthentication", []),
     ("int", "Steam_ServerModeAuthenticationAndSecure", []),
     ("uint16", "Steam_GameServer_QueryPortShared", []),
+    ("SteamAPICall_t", "Steam_Lobby_RequestList", []),
+    ("bool", "Steam_Lobby_IsListPending", []),
+    ("bool", "Steam_Lobby_IsListComplete", []),
+    ("bool", "Steam_Lobby_ListHadIOFailure", []),
+    ("uint32", "Steam_Lobby_GetListResultCount", []),
+    ("uint64_steamid", "Steam_Lobby_GetListLobbyByIndex", [("int", "index")]),
+    ("std::string", "Steam_Lobby_GetListLobbyNameByIndex", [("int", "index")]),
+    ("void", "Steam_Lobby_ClearAsyncState", []),
+]
+
+MANUAL_DISPATCH_FUNCTIONS = [
+    ("void", "Steam_ManualDispatch_Init", []),
+    ("void", "Steam_ManualDispatch_RunFrame", [("HSteamPipe", "pipe")]),
+    ("bool", "Steam_ManualDispatch_GetNextCallback", [("HSteamPipe", "pipe")]),
+    ("HSteamUser", "Steam_ManualDispatch_GetCallbackSteamUser", []),
+    ("int", "Steam_ManualDispatch_GetCallbackID", []),
+    ("std::string", "Steam_ManualDispatch_GetCallbackData", []),
+    ("int", "Steam_ManualDispatch_GetCallbackSize", []),
+    ("bool", "Steam_ManualDispatch_CallbackIsAPICallCompleted", []),
+    ("SteamAPICall_t", "Steam_ManualDispatch_GetCompletedAPICall", []),
+    ("int", "Steam_ManualDispatch_GetCompletedCallbackID", []),
+    ("uint32", "Steam_ManualDispatch_GetCompletedCallbackSize", []),
+    (
+        "bool",
+        "Steam_ManualDispatch_GetAPICallResult",
+        [
+            ("HSteamPipe", "pipe"),
+            ("SteamAPICall_t", "apiCall"),
+            ("int", "callbackSize"),
+            ("int", "callbackID"),
+        ],
+    ),
+    ("std::string", "Steam_ManualDispatch_GetAPICallResultData", []),
+    ("bool", "Steam_ManualDispatch_GetAPICallResultFailed", []),
+    ("int", "Steam_ManualDispatch_CallbackIDSteamAPICallCompleted", []),
+    ("void", "Steam_ManualDispatch_FreeLastCallback", [("HSteamPipe", "pipe")]),
 ]
 
 
@@ -770,6 +807,8 @@ def resolve_c_type(type_name: str, typedefs: dict[str, str], enums: set[str]) ->
 def c_return(method: dict, expression: str, c_type: str, cpp_type: str) -> str:
     if cpp_type == "void":
         return f"\t{expression};"
+    if c_type == "SWS_String":
+        return f"\treturn CopyStringForC( {expression} );"
     if c_type == cpp_type:
         return f"\treturn {expression};"
     return f"\treturn static_cast<{c_type}>( {expression} );"
@@ -856,9 +895,22 @@ def c_definition(method: dict) -> str:
 def c_api_methods(api: dict, methods: list[dict]) -> list[dict]:
     typedefs = api_typedef_map(api)
     enums = api_enum_names(api)
+    dispatch_items = list(MANUAL_DISPATCH_FUNCTIONS)
+    dispatch_items.extend(
+        ("int", f'Steam_ManualDispatch_CallbackID{item["name"]}', [])
+        for item in manual_dispatch_entries()
+    )
+    dispatch_items.extend(
+        ("std::string", f'Steam_ManualDispatch_DecodeCallback{item["name"]}', [])
+        for item in MANUAL_DISPATCH_CALLBACKS
+    )
+    dispatch_items.extend(
+        ("std::string", f'Steam_ManualDispatch_DecodeAPICallResult{item["name"]}', [])
+        for item in MANUAL_DISPATCH_API_CALL_RESULTS
+    )
     manual = [
         method
-        for item in C_MANUAL_FUNCTIONS
+        for item in C_MANUAL_FUNCTIONS + dispatch_items
         if (method := c_manual_method(item, typedefs, enums)) is not None
     ]
     generated = [

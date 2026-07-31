@@ -8,6 +8,7 @@
 /dist/
 /wheelhouse/
 /generated/
+/go/steamworks/generated.go
 /go/steamworks/raw/
 /*.egg-info/
 /**/__pycache__/

@@ -147,6 +147,7 @@ bool Steam_Lobby_ListHadIOFailure();
 uint32 Steam_Lobby_GetListResultCount();
 uint64_steamid Steam_Lobby_GetListLobbyByIndex( int index );
 std::string Steam_Lobby_GetListLobbyNameByIndex( int index );
+void Steam_Lobby_ClearAsyncState();
 std::vector<std::string> Steam_Lobby_GetDataEntries( uint64_steamid lobbyID );
 SteamAPICall_t Steam_Lobby_Create( int lobbyType, int maxMembers );
 bool Steam_Lobby_IsCreatePending();
