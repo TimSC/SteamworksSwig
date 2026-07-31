@@ -204,165 +204,9 @@ Steamworks initialization fails.
 ## Global Helpers
 
 The generated module includes a small hand-written global API shim in addition
-to the JSON-derived interface methods:
-
-```python
-steamworks.Steam_Init()
-steamworks.Steam_InitEx()
-steamworks.Steam_InitFlat()
-steamworks.Steam_GetLastInitResult()
-steamworks.Steam_GetLastInitError()
-steamworks.Steam_Shutdown()
-steamworks.Steam_RunCallbacks()
-steamworks.Steam_GetCallbackDispatchMode()
-steamworks.Steam_CallbackDispatchModeUninitialized()
-steamworks.Steam_CallbackDispatchModeAutomatic()
-steamworks.Steam_CallbackDispatchModeManual()
-steamworks.Steam_IsSteamRunning()
-steamworks.Steam_RestartAppIfNecessary(app_id)
-steamworks.Steam_ReleaseCurrentThreadMemory()
-steamworks.Steam_WriteMiniDump(structured_exception_code, build_id)
-steamworks.Steam_GetSteamInstallPath()
-steamworks.Steam_SetTryCatchCallbacks(enabled)
-steamworks.Steam_SetMiniDumpComment(message)
-steamworks.Steam_ManualDispatch_Init()
-steamworks.Steam_ManualDispatch_RunFrame(pipe)
-steamworks.Steam_ManualDispatch_GetNextCallback(pipe)
-steamworks.Steam_ManualDispatch_GetCallbackSteamUser()
-steamworks.Steam_ManualDispatch_GetCallbackID()
-steamworks.Steam_ManualDispatch_GetCallbackData()
-steamworks.Steam_ManualDispatch_GetCallbackSize()
-steamworks.Steam_ManualDispatch_CallbackIsAPICallCompleted()
-steamworks.Steam_ManualDispatch_GetCompletedAPICall()
-steamworks.Steam_ManualDispatch_GetCompletedCallbackID()
-steamworks.Steam_ManualDispatch_GetCompletedCallbackSize()
-steamworks.Steam_ManualDispatch_GetAPICallResult(pipe, api_call, callback_size, callback_id)
-steamworks.Steam_ManualDispatch_GetAPICallResultData()
-steamworks.Steam_ManualDispatch_GetAPICallResultFailed()
-steamworks.Steam_ManualDispatch_CallbackIDSteamAPICallCompleted()
-steamworks.Steam_ManualDispatch_CallbackIDSteamNetConnectionStatusChanged()
-steamworks.Steam_ManualDispatch_CallbackIDLowBatteryPower()
-steamworks.Steam_ManualDispatch_CallbackIDSteamShutdown()
-steamworks.Steam_ManualDispatch_CallbackIDSteamServersConnected()
-steamworks.Steam_ManualDispatch_CallbackIDSteamServerConnectFailure()
-steamworks.Steam_ManualDispatch_CallbackIDSteamServersDisconnected()
-steamworks.Steam_ManualDispatch_CallbackIDIPCFailure()
-steamworks.Steam_ManualDispatch_CallbackIDLicensesUpdated()
-steamworks.Steam_ManualDispatch_CallbackIDValidateAuthTicketResponse()
-steamworks.Steam_ManualDispatch_CallbackIDMicroTxnAuthorizationResponse()
-steamworks.Steam_ManualDispatch_CallbackIDClientGameServerDeny()
-steamworks.Steam_ManualDispatch_CallbackIDEncryptedAppTicketResponse()
-steamworks.Steam_ManualDispatch_CallbackIDGetAuthSessionTicketResponse()
-steamworks.Steam_ManualDispatch_CallbackIDGameWebCallback()
-steamworks.Steam_ManualDispatch_CallbackIDDlcInstalled()
-steamworks.Steam_ManualDispatch_CallbackIDNewUrlLaunchParameters()
-steamworks.Steam_ManualDispatch_CallbackIDFavoritesListChanged()
-steamworks.Steam_ManualDispatch_CallbackIDLobbyInvite()
-steamworks.Steam_ManualDispatch_CallbackIDLobbyMatchList()
-steamworks.Steam_ManualDispatch_CallbackIDLobbyEnter()
-steamworks.Steam_ManualDispatch_CallbackIDLobbyCreated()
-steamworks.Steam_ManualDispatch_CallbackIDLobbyDataUpdate()
-steamworks.Steam_ManualDispatch_CallbackIDLobbyChatUpdate()
-steamworks.Steam_ManualDispatch_CallbackIDLobbyChatMsg()
-steamworks.Steam_ManualDispatch_CallbackIDLobbyGameCreated()
-steamworks.Steam_ManualDispatch_CallbackIDLobbyKicked()
-steamworks.Steam_ManualDispatch_CallbackIDGameServerChangeRequested()
-steamworks.Steam_ManualDispatch_CallbackIDGameOverlayActivated()
-steamworks.Steam_ManualDispatch_CallbackIDGameLobbyJoinRequested()
-steamworks.Steam_ManualDispatch_CallbackIDAvatarImageLoaded()
-steamworks.Steam_ManualDispatch_CallbackIDFriendRichPresenceUpdate()
-steamworks.Steam_ManualDispatch_CallbackIDGameRichPresenceJoinRequested()
-steamworks.Steam_ManualDispatch_CallbackIDPersonaStateChange()
-steamworks.Steam_ManualDispatch_CallbackIDP2PSessionRequest()
-steamworks.Steam_ManualDispatch_CallbackIDP2PSessionConnectFail()
-steamworks.Steam_ManualDispatch_CallbackIDSocketStatusCallback()
-steamworks.Steam_ManualDispatch_CallbackIDSteamNetAuthenticationStatus()
-steamworks.Steam_ManualDispatch_CallbackIDSteamRelayNetworkStatus()
-steamworks.Steam_ManualDispatch_CallbackIDSteamNetworkingMessagesSessionRequest()
-steamworks.Steam_ManualDispatch_CallbackIDSteamNetworkingMessagesSessionFailed()
-steamworks.Steam_ManualDispatch_CallbackIDSteamNetworkingFakeIPResult()
-steamworks.Steam_ManualDispatch_DecodeCallbackSteamNetConnectionStatusChanged()
-steamworks.Steam_ManualDispatch_DecodeCallbackLowBatteryPower()
-steamworks.Steam_ManualDispatch_DecodeCallbackSteamShutdown()
-steamworks.Steam_ManualDispatch_DecodeCallbackSteamServersConnected()
-steamworks.Steam_ManualDispatch_DecodeCallbackSteamServerConnectFailure()
-steamworks.Steam_ManualDispatch_DecodeCallbackSteamServersDisconnected()
-steamworks.Steam_ManualDispatch_DecodeCallbackIPCFailure()
-steamworks.Steam_ManualDispatch_DecodeCallbackLicensesUpdated()
-steamworks.Steam_ManualDispatch_DecodeCallbackValidateAuthTicketResponse()
-steamworks.Steam_ManualDispatch_DecodeCallbackMicroTxnAuthorizationResponse()
-steamworks.Steam_ManualDispatch_DecodeCallbackClientGameServerDeny()
-steamworks.Steam_ManualDispatch_DecodeCallbackEncryptedAppTicketResponse()
-steamworks.Steam_ManualDispatch_DecodeCallbackGetAuthSessionTicketResponse()
-steamworks.Steam_ManualDispatch_DecodeCallbackGameWebCallback()
-steamworks.Steam_ManualDispatch_DecodeCallbackDlcInstalled()
-steamworks.Steam_ManualDispatch_DecodeCallbackNewUrlLaunchParameters()
-steamworks.Steam_ManualDispatch_DecodeCallbackFavoritesListChanged()
-steamworks.Steam_ManualDispatch_DecodeCallbackLobbyInvite()
-steamworks.Steam_ManualDispatch_DecodeCallbackLobbyEnter()
-steamworks.Steam_ManualDispatch_DecodeCallbackLobbyDataUpdate()
-steamworks.Steam_ManualDispatch_DecodeCallbackLobbyChatUpdate()
-steamworks.Steam_ManualDispatch_DecodeCallbackLobbyChatMsg()
-steamworks.Steam_ManualDispatch_DecodeCallbackLobbyGameCreated()
-steamworks.Steam_ManualDispatch_DecodeCallbackLobbyKicked()
-steamworks.Steam_ManualDispatch_DecodeCallbackGameServerChangeRequested()
-steamworks.Steam_ManualDispatch_DecodeCallbackGameOverlayActivated()
-steamworks.Steam_ManualDispatch_DecodeCallbackGameLobbyJoinRequested()
-steamworks.Steam_ManualDispatch_DecodeCallbackAvatarImageLoaded()
-steamworks.Steam_ManualDispatch_DecodeCallbackFriendRichPresenceUpdate()
-steamworks.Steam_ManualDispatch_DecodeCallbackGameRichPresenceJoinRequested()
-steamworks.Steam_ManualDispatch_DecodeCallbackPersonaStateChange()
-steamworks.Steam_ManualDispatch_DecodeCallbackP2PSessionRequest()
-steamworks.Steam_ManualDispatch_DecodeCallbackP2PSessionConnectFail()
-steamworks.Steam_ManualDispatch_DecodeCallbackSocketStatusCallback()
-steamworks.Steam_ManualDispatch_DecodeCallbackSteamNetAuthenticationStatus()
-steamworks.Steam_ManualDispatch_DecodeCallbackSteamRelayNetworkStatus()
-steamworks.Steam_ManualDispatch_DecodeCallbackSteamNetworkingMessagesSessionRequest()
-steamworks.Steam_ManualDispatch_DecodeCallbackSteamNetworkingMessagesSessionFailed()
-steamworks.Steam_ManualDispatch_DecodeCallbackSteamNetworkingFakeIPResult()
-steamworks.Steam_ManualDispatch_DecodeAPICallResultLobbyMatchList()
-steamworks.Steam_ManualDispatch_DecodeAPICallResultLobbyEnter()
-steamworks.Steam_ManualDispatch_DecodeAPICallResultLobbyCreated()
-steamworks.Steam_ManualDispatch_FreeLastCallback(pipe)
-steamworks.Steam_GetHSteamPipe()
-steamworks.Steam_GetHSteamUser()
-steamworks.Steam_GameServer_Init(ip, game_port, query_port, server_mode, version)
-steamworks.Steam_GameServer_InitEx(ip, game_port, query_port, server_mode, version)
-steamworks.Steam_GameServer_GetLastInitResult()
-steamworks.Steam_GameServer_GetLastInitError()
-steamworks.Steam_GameServer_Shutdown()
-steamworks.Steam_GameServer_RunCallbacks()
-steamworks.Steam_GameServer_ReleaseCurrentThreadMemory()
-steamworks.Steam_GameServer_GlobalBSecure()
-steamworks.Steam_GameServer_GlobalGetSteamID()
-steamworks.Steam_GameServer_GetHSteamPipe()
-steamworks.Steam_GameServer_GetHSteamUser()
-steamworks.Steam_ServerModeInvalid()
-steamworks.Steam_ServerModeNoAuthentication()
-steamworks.Steam_ServerModeAuthentication()
-steamworks.Steam_ServerModeAuthenticationAndSecure()
-steamworks.Steam_GameServer_QueryPortShared()
-steamworks.Steam_NetworkingSockets_CreateListenSocketIPStringNoOptions(address)
-steamworks.Steam_NetworkingSockets_ConnectByIPAddressStringNoOptions(address)
-steamworks.Steam_NetworkingSockets_GetConnectionInfoString(connection)
-steamworks.Steam_NetworkingSockets_GetConnectionRealTimeStatusString(connection)
-steamworks.Steam_NetworkingSockets_GetListenSocketAddressString(listen_socket)
-steamworks.Steam_NetworkingSockets_GetIdentityString()
-steamworks.Steam_NetworkingSockets_GetAuthenticationStatusString()
-steamworks.Steam_NetworkingSockets_GetFakeIPString(first_port_index)
-steamworks.Steam_NetworkingSockets_CreateListenSocketP2PFakeIPNoOptions(fake_port_index)
-steamworks.Steam_NetworkingSockets_GetRemoteFakeIPForConnectionString(connection)
-steamworks.Steam_MatchmakingServers_PingServer(ip, port)
-steamworks.Steam_MatchmakingServers_IsPingPending()
-steamworks.Steam_MatchmakingServers_IsPingComplete()
-steamworks.Steam_MatchmakingServers_PingFailed()
-steamworks.Steam_MatchmakingServers_PingSucceeded()
-steamworks.Steam_MatchmakingServers_GetPingServer()
-steamworks.Steam_MatchmakingServers_ClearPingResult()
-```
-
-Some global SDK functions still need explicit typemaps before they can be safely
-wrapped, notably callback function pointer registration APIs.
+to the JSON-derived interface methods. Some global SDK functions still need explicit 
+typemaps before they can be safely wrapped, notably callback function pointer 
+registration APIs.
 
 ## API Coverage
 
@@ -372,21 +216,21 @@ the flat API has a matching accessor and the signature can be represented safely
 with Python scalar/string types. Methods that require output structs, pointer
 buffers, callbacks, or interface pointers usually need explicit shim code.
 
-Current generated interface coverage is **620 of 913 SDK method overloads, or
-67.9%**. Those 620 SDK methods collapse to **614 unique Python function names**
+Current generated interface coverage is **624 of 921 SDK method overloads, or
+67.8%**. Those 624 SDK methods collapse to **618 unique Python function names**
 where Valve exposes C++ overloads with the same method name.
 
-The generated module currently exports **750 unique `Steam_*` Python
-functions**: **614 JSON-derived functions** plus **136 hand-written
+The generated module currently exports **761 unique `Steam_*` Python
+functions**: **618 JSON-derived functions** plus **143 hand-written
 static/helper functions**. Helper functions cover initialization, manual
 dispatch, game-server initialization, networking payloads,
 `ISteamNetworkingSockets` connection-status and query helpers, lobby async
-calls, matchmaking server pings, and friend game/server state.
+calls, matchmaking server pings/friend queries, and friend game/server state.
 
 | Steamworks group | JSON SDK methods | JSON wrapped | JSON coverage | JSON Python funcs | Static/helper funcs | Total Python funcs |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | `Global/static` | - | - | - | 0 | 31 | 31 |
-| `Apps` | 33 | 24 | 72.7% | 24 | 0 | 24 |
+| `Apps` | 35 | 26 | 74.3% | 26 | 0 | 26 |
 | `Client` | 33 | 0 | 0.0% | 0 | 0 | 0 |
 | `Controller` | 34 | 29 | 85.3% | 29 | 0 | 29 |
 | `Friends` | 78 | 72 | 92.3% | 72 | 13 | 85 |
@@ -400,8 +244,9 @@ calls, matchmaking server pings, and friend game/server state.
 | `MatchmakingPingResponse` | 2 | 0 | 0.0% | 0 | 0 | 0 |
 | `MatchmakingPlayersResponse` | 3 | 0 | 0.0% | 0 | 0 | 0 |
 | `MatchmakingRulesResponse` | 3 | 0 | 0.0% | 0 | 0 | 0 |
+| `MatchmakingServerFriendsResponse` | 3 | 0 | 0.0% | 0 | 0 | 0 |
 | `MatchmakingServerListResponse` | 3 | 0 | 0.0% | 0 | 0 | 0 |
-| `MatchmakingServers` | 17 | 7 | 41.2% | 7 | 7 | 14 |
+| `MatchmakingServers` | 18 | 7 | 38.9% | 7 | 14 | 21 |
 | `Music` | 9 | 9 | 100.0% | 9 | 0 | 9 |
 | `Networking` | 22 | 11 | 50.0% | 11 | 0 | 11 |
 | `NetworkingFakeUDPPort` | 4 | 0 | 0.0% | 0 | 0 | 0 |
@@ -417,9 +262,9 @@ calls, matchmaking server pings, and friend game/server state.
 | `UGC` | 99 | 74 | 74.7% | 73 | 0 | 73 |
 | `User` | 33 | 24 | 72.7% | 24 | 0 | 24 |
 | `UserStats` | 44 | 24 | 54.5% | 23 | 0 | 23 |
-| `Utils` | 37 | 31 | 83.8% | 31 | 0 | 31 |
+| `Utils` | 39 | 33 | 84.6% | 33 | 0 | 33 |
 | `Video` | 4 | 2 | 50.0% | 2 | 0 | 2 |
-| **Total** | **913** | **620** | **67.9%** | **614** | **136** | **750** |
+| **Total** | **921** | **624** | **67.8%** | **618** | **143** | **761** |
 
 ## SpaceWar Server, Lobby, And Networking
 
@@ -552,7 +397,24 @@ else:
 
 The ping result is returned as tab-separated `key=value` fields, matching the
 other event shims. `Steam_MatchmakingServers_ClearPingResult()` resets the
-single stored result before starting another ping.
+single stored result before starting another ping. With SDK 1.65 and newer,
+the same polling shape is available for querying friends who have played on a
+server:
+
+```python
+query = steamworks.Steam_MatchmakingServers_ServerFriends(ip, query_port)
+while steamworks.Steam_MatchmakingServers_IsServerFriendsPending():
+    steamworks.Steam_RunCallbacks()
+
+if steamworks.Steam_MatchmakingServers_ServerFriendsSucceeded():
+    for entry in steamworks.Steam_MatchmakingServers_GetServerFriends():
+        fields = dict(part.split("=", 1) for part in entry.split("\t"))
+        print(fields["steam_id"], fields["name"], fields["currently_connected"])
+```
+
+`Steam_MatchmakingServers_GetPingServer()` also includes
+`current_friend_count` and `total_friend_count` fields when built against SDK
+1.65 or newer.
 
 The networking-sockets helpers add Python-friendly overloads for the pointer-heavy
 payload methods used by the example:

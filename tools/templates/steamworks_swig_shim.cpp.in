@@ -528,6 +528,7 @@ std::string SerializeGameServerItem( const gameserveritem_t &server )
 	result += "\tserver_version=" + std::to_string( server.m_nServerVersion );
 	result += "\tgame_tags=" + EscapeEventField( server.m_szGameTags );
 	result += "\tsteam_id=" + std::to_string( server.m_steamID.ConvertToUint64() );
+{{ game_server_item_optional_fields }}
 	return result;
 }
 
@@ -613,6 +614,8 @@ private:
 };
 
 MatchmakingPingResponse g_matchmakingPingResponse;
+
+{{ matchmaking_server_friends_helpers }}
 
 SteamNetworkingIdentity IdentityForSteamID( uint64_steamid steamID )
 {
@@ -2054,6 +2057,8 @@ void Steam_MatchmakingServers_ClearPingResult()
 {
 	g_matchmakingPingResponse.Clear();
 }
+
+{{ matchmaking_server_friends_definitions }}
 
 int Steam_FriendFlagImmediate()
 {
