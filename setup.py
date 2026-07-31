@@ -10,6 +10,7 @@ from pathlib import Path
 from setuptools import Extension, setup
 from setuptools.command.build_ext import build_ext
 from setuptools.command.build_py import build_py
+from setuptools.command.egg_info import egg_info
 
 
 ROOT = Path(__file__).parent.resolve()
@@ -22,6 +23,10 @@ SWIG_INTERFACE = GENERATED_DIR / "steamworks.i"
 SWIG_PROXY = GENERATED_DIR / "steamworks.py"
 SWIG_WRAPPER = GENERATED_DIR / "steamworks_wrap.cpp"
 SHIM_SOURCE = GENERATED_DIR / "steamworks_swig_shim.cpp"
+
+
+def setup_relative(path: Path) -> str:
+    return path.relative_to(ROOT).as_posix()
 
 
 def steamworks_platform_config() -> dict[str, object]:
@@ -151,6 +156,12 @@ class SteamworksBuildPy(build_py):
         shutil.copy2(STEAM_RUNTIME_LIB, package_dir / STEAM_RUNTIME_LIB.name)
 
 
+class SteamworksEggInfo(egg_info):
+    def run(self) -> None:
+        (Path(self.egg_info) / "SOURCES.txt").unlink(missing_ok=True)
+        super().run()
+
+
 class SteamworksBuildExt(build_ext):
     def run(self) -> None:
         generate_sources()
@@ -163,7 +174,7 @@ class SteamworksBuildExt(build_ext):
 
 extension = Extension(
     "steamworks._steamworks",
-    sources=[str(SWIG_WRAPPER), str(SHIM_SOURCE)],
+    sources=[setup_relative(SWIG_WRAPPER), setup_relative(SHIM_SOURCE)],
     include_dirs=[str(STEAM_INCLUDE), str(GENERATED_DIR)],
     library_dirs=STEAM_CONFIG["library_dirs"],
     libraries=STEAM_CONFIG["libraries"],
@@ -182,5 +193,6 @@ setup(
     cmdclass={
         "build_py": SteamworksBuildPy,
         "build_ext": SteamworksBuildExt,
+        "egg_info": SteamworksEggInfo,
     },
 )

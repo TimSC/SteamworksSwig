@@ -2,7 +2,7 @@
 
 Experimental Python bindings for the Steamworks SDK using SWIG and Valve's flat
 Steamworks API. This project currently targets SDK v164 and may require changes to
-build against a different version.
+build against a different version. This version primarily targets v1.65.
 
 The wrapper is generated from:
 
@@ -32,7 +32,7 @@ sdk/
 ```
 
 For this repo, `sdk` may be a symlink to a versioned SDK directory such as
-`sdk_v164`.
+`sdk_v165`.
 
 Alternatively, set `STEAMWORKS_SDK_DIR` to build against a specific installed
 SDK without changing the symlink:
