@@ -8,7 +8,7 @@
 /dist/
 /wheelhouse/
 /generated/
-/go/steamworks/
+/go/steamworks/raw/
 /*.egg-info/
 /**/__pycache__/
 *.py[cod]

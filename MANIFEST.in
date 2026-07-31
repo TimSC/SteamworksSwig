@@ -6,6 +6,8 @@ include pyproject.toml
 include setup.py
 include *.py
 include *.md
+include go.mod
+include go/steamworks/*.go
 recursive-include examples *.go *.py
 recursive-include python *.py
 recursive-include tools *.py *.in
@@ -15,6 +17,7 @@ recursive-include tools *.py *.in
 prune sdk
 prune sdk_*
 prune generated
+prune go/steamworks/raw
 prune build
 prune dist
 prune *.egg-info

@@ -14,7 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 GENERATED_DIR = ROOT / "generated"
-DEFAULT_OUTDIR = ROOT / "go" / "steamworks"
+DEFAULT_OUTDIR = ROOT / "go" / "steamworks" / "raw"
 
 
 def resolve_sdk_dir(value: str | None) -> Path:
@@ -57,7 +57,7 @@ def write_go_interface(outdir: Path) -> Path:
     interface.write_text(
         "\n".join(
             [
-                "%module steamworks",
+                "%module raw",
                 "%{",
                 '#include "steamworks_c_api.h"',
                 "%}",
@@ -78,7 +78,7 @@ def write_cgo_flags(outdir: Path, sdk_dir: Path) -> None:
         raise SystemExit(f"Steamworks redistributable directory not found: {lib_dir}")
 
     lines = [
-        "package steamworks",
+        "package raw",
         "",
         "/*",
         f"#cgo CFLAGS: -I{include_dir.as_posix()} -I${{SRCDIR}}",
@@ -152,7 +152,7 @@ def main() -> int:
             "-intgosize",
             "64",
             "-package",
-            "steamworks",
+            "raw",
             f"-I{outdir}",
             "-outdir",
             str(outdir),
@@ -165,7 +165,6 @@ def main() -> int:
 
     if not args.skip_build:
         env = os.environ.copy()
-        env.setdefault("GO111MODULE", "off")
         env.setdefault("GOCACHE", str(Path("/tmp") / "steamworks-swig-go-build-cache"))
         run(["go", "test"], cwd=outdir, env=env)
 

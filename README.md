@@ -1,8 +1,8 @@
 # Steamworks SWIG Python Wrapper
 
 Experimental Python bindings for the Steamworks SDK using SWIG and Valve's flat
-Steamworks API. This project currently targets SDK v164 and may require changes to
-build against a different version. This version primarily targets v1.65.
+Steamworks API. This project currently targets SDK v1.65 and may require changes to
+build against a different version.
 
 The wrapper is generated from:
 
@@ -10,6 +10,9 @@ The wrapper is generated from:
 sdk/public/steam/steam_api.json
 sdk/public/steam/steam_api_flat.h
 ```
+
+The project includes an experimental Go wrapper.See [GO.md](GO.md) for Go 
+binding generation, package layout, and smoke-test instructions.
 
 ## Requirements
 
@@ -225,38 +228,6 @@ This layer currently covers the same scalar/string-safe JSON methods as the
 Python generator plus core init and game-server helpers. Pointer buffers,
 callback registration, owned string results, and vector results still need
 explicit C-safe adapters.
-
-## Experimental Go SWIG Wrapper
-
-You can generate a local Go/cgo package from the C ABI layer with:
-
-```bash
-python3 tools/build_go_swig.py --sdk-dir sdk_v165
-```
-
-The script regenerates the C++ shim, creates `go/steamworks`, runs SWIG with
-the Go backend, writes the cgo compiler/linker flags for your local SDK path,
-and runs `go test` to confirm the package compiles. The generated Go package is
-ignored by git because it contains SDK-path-specific build flags and generated
-source.
-
-After generating the wrapper, run the Go smoke test from the project root:
-
-```bash
-GO111MODULE=off go run examples/go/test.go
-```
-
-It prints the same basic Steamworks state as `examples/python/test.py`.
-
-To generate without compiling:
-
-```bash
-python3 tools/build_go_swig.py --sdk-dir sdk_v165 --skip-build
-```
-
-SWIG may print a `const char * variable may leak memory` warning while parsing
-the C ABI header. The current generated API only returns borrowed Steamworks
-strings, so there is nothing to free for those values.
 
 ## API Coverage
 
