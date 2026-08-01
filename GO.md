@@ -52,9 +52,9 @@ The raw generated package remains available at:
 github.com/TimSC/SteamworksSwig/go/steamworks/raw
 ```
 
-Most safe scalar/string methods are generated as grouped methods on interfaces
-such as `steamworks.Apps`, `steamworks.Friends`, `steamworks.UserStats`, and
-`steamworks.UGC`. For example, the raw function:
+Most safe scalar/string SDK methods are generated as grouped methods on
+interfaces such as `steamworks.Apps`, `steamworks.Friends`,
+`steamworks.UserStats`, and `steamworks.UGC`. For example, the raw function:
 
 ```go
 raw.SWS_SteamAPI_ISteamApps_BIsVACBanned()
@@ -65,6 +65,24 @@ is available as:
 ```go
 steamworks.Apps.IsVACBanned()
 ```
+
+The grouped generator also wraps scalar/string helper functions from the shared
+C ABI model, matching the Python grouped surface more closely. This includes
+friend game helpers, lobby constants and async-state helpers, game-server
+lifecycle helpers, matchmaking server helpers, networking status string
+helpers, and manual-dispatch callback decoders:
+
+```go
+steamworks.Friends.GetFriendGamePlayedInfo(friendID)
+steamworks.LobbyConstants.LobbyTypePublic()
+steamworks.GameServer.GetLastInitError()
+steamworks.ManualDispatch.DecodeCallbackLobbyEnter()
+steamworks.GetSteamInstallPath()
+```
+
+Helpers returning owned byte buffers or owned string/byte lists remain available
+through `go/steamworks/raw` for now. The friendly Go layer intentionally waits
+for explicit conversion helpers before exposing those as `[]byte` or `[]string`.
 
 ## Manual Dispatch Callbacks
 
@@ -116,8 +134,23 @@ You need Steam running and logged in, plus `steam_appid.txt` in the project root
 There is also a lobby-list example mirroring `examples/python/list_lobbies.py`:
 
 ```bash
-go run examples/go/list_lobbies.go
+go run examples/go/list_lobbies.go --max-results 10 --timeout 10s
 ```
+
+It applies a result-count filter to the next lobby query, waits for the
+`LobbyMatchList` result, and prints each returned lobby's ID, name, member
+count, member limit, and owner.
+
+For a broader low-impact live API sweep:
+
+```bash
+go run examples/go/live_api_smoke.go
+```
+
+Use `--limit N` to run only the first N calls, or `--json` for machine-readable
+output. The example calls a curated set of no-argument read-style APIs and
+avoids operations that create auth tickets, write files, update stats, create
+lobbies, or otherwise intentionally mutate Steam/account/app state.
 
 ## SWIG Warning
 

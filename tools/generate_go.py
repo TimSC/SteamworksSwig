@@ -37,8 +37,56 @@ GO_INITIALISMS = {
 HAND_WRITTEN_METHODS = {
     "Apps": {"IsSubscribed"},
     "Friends": {"PersonaName"},
+    "Global/static": {
+        "CallbackDispatchModeAutomatic",
+        "CallbackDispatchModeManual",
+        "CallbackDispatchModeUninitialized",
+        "ClearHelperState",
+        "GetHSteamPipe",
+        "GetHSteamUser",
+        "GetLastInitError",
+        "GetLastInitResult",
+        "Init",
+        "InitEx",
+        "IsSteamRunning",
+        "RunCallbacks",
+        "Shutdown",
+    },
+    "Lobby": {
+        "ClearAsyncState",
+        "GetListLobbyByIndex",
+        "GetListLobbyNameByIndex",
+        "GetListResultCount",
+        "IsListComplete",
+        "IsListPending",
+        "ListHadIOFailure",
+        "RequestList",
+    },
+    "ManualDispatch": {
+        "CallbackIsAPICallCompleted",
+        "FreeLastCallback",
+        "GetAPICallResult",
+        "GetAPICallResultData",
+        "GetAPICallResultFailed",
+        "GetCallbackData",
+        "GetCallbackID",
+        "GetCallbackSize",
+        "GetCallbackSteamUser",
+        "GetCompletedAPICall",
+        "GetCompletedCallbackID",
+        "GetCompletedCallbackSize",
+        "GetNextCallback",
+        "Init",
+        "RunFrame",
+    },
     "User": {"LoggedOn", "SteamID"},
     "Utils": {"AppID"},
+}
+
+UNFRIENDLY_RETURN_TYPES = {
+    "SWS_Bytes",
+    "SWS_BytesList",
+    "SWS_StringList",
 }
 
 GO_KEYWORDS = {
@@ -77,16 +125,32 @@ def go_identifier(value: str) -> str:
     if not words:
         return value
     converted = []
-    for word in words:
+    index = 0
+    while index < len(words):
+        if (
+            index + 2 < len(words)
+            and words[index].upper() == "P"
+            and words[index + 1] == "2"
+            and words[index + 2].upper() == "P"
+        ):
+            converted.append("P2P")
+            index += 3
+            continue
+        word = words[index]
         upper = word.upper()
         if upper in GO_INITIALISMS:
             converted.append(upper)
         else:
             converted.append(word[:1].upper() + word[1:])
+        index += 1
     return "".join(converted)
 
 
 def receiver_type_name(interface_name: str) -> str:
+    if interface_name.startswith("HTML"):
+        return "html" + interface_name[len("HTML"):] + "API"
+    if interface_name.startswith("HTTP"):
+        return "http" + interface_name[len("HTTP"):] + "API"
     return interface_name[:1].lower() + interface_name[1:] + "API"
 
 
@@ -98,6 +162,19 @@ def wrapper_method_name(raw_method_name: str) -> str:
     ):
         raw_method_name = raw_method_name[1:]
     return go_identifier(raw_method_name)
+
+
+def helper_method_name(interface_name: str, c_name: str, raw_method_name: str) -> str:
+    name = raw_method_name
+    if name.startswith("Steam_"):
+        name = name[len("Steam_"):]
+    if interface_name and interface_name != "Global/static":
+        prefix = interface_name + "_"
+        if name.startswith(prefix):
+            name = name[len(prefix):]
+    if not name:
+        name = c_name.removeprefix("SWS_Steam_")
+    return go_identifier(name)
 
 
 def go_type(c_type: str) -> str:
@@ -115,7 +192,8 @@ def go_type(c_type: str) -> str:
         "uint32_t": "uint",
         "int64_t": "int64",
         "uint64_t": "uint64",
-        "SWS_String": "raw.SWS_String",
+        "size_t": "int64",
+        "SWS_String": "string",
     }[c_type]
 
 
@@ -138,6 +216,7 @@ def go_arg_names(params: list[dict]) -> str:
 
 def generate(model: dict) -> str:
     interfaces: dict[str, list[dict[str, str | None]]] = {}
+    module_functions: list[dict[str, str | None]] = []
     callback_methods = []
     candidates = []
     for method in model_methods(model):
@@ -147,17 +226,28 @@ def generate(model: dict) -> str:
             callback_methods.append((go_identifier(callback_name), c_name))
             continue
 
-        classname = method.get("classname")
-        raw_method_name = friendly_name(method)
-        if not classname or not raw_method_name or not classname.startswith("ISteam"):
+        return_type = method_return_type(method)
+        if return_type in UNFRIENDLY_RETURN_TYPES:
             continue
 
-        receiver = go_identifier(classname.removeprefix("ISteam"))
-        method_name = wrapper_method_name(raw_method_name)
+        interface = method.get("interface")
+        raw_method_name = friendly_name(method)
+        if not interface or not raw_method_name:
+            continue
+        if method.get("source") == "sdk":
+            classname = method.get("classname")
+            if not classname or not classname.startswith("ISteam"):
+                continue
+            receiver = go_identifier(classname.removeprefix("ISteam"))
+            method_name = wrapper_method_name(raw_method_name)
+            sdk_flat_name = method.get("sdk_flat_name") or c_name
+            c_method_suffix = sdk_flat_name.removeprefix(f"SteamAPI_{classname}_")
+        else:
+            receiver = interface
+            method_name = helper_method_name(interface, c_name, raw_method_name)
+            c_method_suffix = c_name.removeprefix("SWS_Steam_")
         if method_name in HAND_WRITTEN_METHODS.get(receiver, set()):
             continue
-        sdk_flat_name = method.get("sdk_flat_name") or c_name
-        c_method_suffix = sdk_flat_name.removeprefix(f"SteamAPI_{classname}_")
         candidates.append((receiver, method_name, c_method_suffix, method))
 
     named_candidates = disambiguate_names(
@@ -169,15 +259,18 @@ def generate(model: dict) -> str:
 
     for (receiver, _, _, method), method_name in named_candidates:
         return_type = method_return_type(method)
-        interfaces.setdefault(receiver, []).append(
-            {
-                "raw_name": raw_c_name(method),
-                "method_name": method_name,
-                "args": go_args(method_params(method)),
-                "arg_names": go_arg_names(method_params(method)),
-                "return_type": None if return_type == "void" else go_type(return_type),
-            }
-        )
+        item = {
+            "raw_name": raw_c_name(method),
+            "method_name": method_name,
+            "args": go_args(method_params(method)),
+            "arg_names": go_arg_names(method_params(method)),
+            "return_type": None if return_type == "void" else go_type(return_type),
+            "convert_return": return_type == "SWS_String",
+        }
+        if receiver == "Global/static":
+            module_functions.append(item)
+        else:
+            interfaces.setdefault(receiver, []).append(item)
 
     lines = [
         "package steamworks",
@@ -206,10 +299,29 @@ def generate(model: dict) -> str:
             signature_return = f" {return_type}" if return_type else ""
             lines.append(f'func ({receiver_type}) {method["method_name"]}({args}){signature_return} {{')
             if return_type:
-                lines.append(f"\treturn {raw_call}")
+                if method["convert_return"]:
+                    lines.append(f"\treturn takeRawString({raw_call})")
+                else:
+                    lines.append(f"\treturn {raw_call}")
             else:
                 lines.append(f"\t{raw_call}")
             lines.extend(["}", ""])
+
+    for method in sorted(module_functions, key=lambda item: str(item["method_name"])):
+        args = method["args"]
+        return_type = method["return_type"]
+        arg_names = str(method["arg_names"])
+        raw_call = f'raw.{method["raw_name"]}({arg_names})'
+        signature_return = f" {return_type}" if return_type else ""
+        lines.append(f'func {method["method_name"]}({args}){signature_return} {{')
+        if return_type:
+            if method["convert_return"]:
+                lines.append(f"\treturn takeRawString({raw_call})")
+            else:
+                lines.append(f"\treturn {raw_call}")
+        else:
+            lines.append(f"\t{raw_call}")
+        lines.extend(["}", ""])
 
     for callback_name, raw_name in sorted(callback_methods):
         lines.extend(

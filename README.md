@@ -205,6 +205,18 @@ Subscribed to app: yes
 The smoke test uses `steamworks.init_ex()` and prints
 `steamworks.last_init_error()` if Steamworks initialization fails.
 
+For a broader low-impact live API sweep, run:
+
+```bash
+python3 examples/python/live_api_smoke.py
+go run examples/go/live_api_smoke.go
+```
+
+These scripts call no-argument read-style APIs across many Steamworks
+interfaces. They are intended for local manual testing with Steam running, not
+for default CI, and avoid operations such as auth-ticket creation, file writes,
+lobby creation, stat updates, and other state-changing calls.
+
 ## Python API
 
 Python exposes a generated grouped API over the C ABI:
@@ -487,8 +499,12 @@ print(steamworks.lobby.join_succeeded())
 You can try lobby listing with:
 
 ```bash
-python3 examples/python/list_lobbies.py
+python3 examples/python/list_lobbies.py --max-results 10 --timeout 10
 ```
+
+This applies a result-count filter to the next lobby query, waits for the
+`LobbyMatchList` result, and prints each returned lobby's ID, name, member
+count, member limit, and owner.
 
 See [interactive.md](interactive.md) for the interactive lobby/P2P demo.
 

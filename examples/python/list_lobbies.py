@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""List Steam lobbies using the generated Python lobby call-result shim."""
+"""Query Steam lobbies using the generated Python lobby call-result shim."""
 
 from __future__ import annotations
 
+import argparse
 import sys
 import time
 
@@ -19,7 +20,16 @@ def pump_until(predicate, timeout_seconds: float = 10.0) -> bool:
     return False
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--max-results", type=int, default=10, help="maximum lobby results to request")
+    parser.add_argument("--timeout", type=float, default=10.0, help="seconds to wait for the lobby query")
+    return parser.parse_args()
+
+
 def main() -> int:
+    args = parse_args()
+
     if not steamworks.is_steam_running():
         print("Steam is not running.", file=sys.stderr)
         return 1
@@ -30,8 +40,9 @@ def main() -> int:
         return 1
 
     try:
+        steamworks.matchmaking.add_request_lobby_list_result_count_filter(args.max_results)
         steamworks.lobby.request_list()
-        if not pump_until(steamworks.lobby.is_list_complete):
+        if not pump_until(steamworks.lobby.is_list_complete, args.timeout):
             print("Timed out waiting for lobby list.", file=sys.stderr)
             return 1
 
@@ -44,7 +55,15 @@ def main() -> int:
         for index in range(count):
             lobby_id = steamworks.lobby.list_lobby_by_index(index)
             lobby_name = steamworks.lobby.list_lobby_name_by_index(index)
-            print(f"{index}: {lobby_id} {lobby_name}")
+            members = steamworks.matchmaking.num_lobby_members(lobby_id)
+            member_limit = steamworks.matchmaking.lobby_member_limit(lobby_id)
+            owner_id = steamworks.matchmaking.lobby_owner(lobby_id)
+            print(
+                f"{index}: {lobby_id} "
+                f"name={lobby_name!r} "
+                f"members={members}/{member_limit} "
+                f"owner={owner_id}"
+            )
     finally:
         steamworks.shutdown()
 

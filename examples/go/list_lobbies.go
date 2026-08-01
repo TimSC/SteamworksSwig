@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"time"
@@ -21,6 +22,10 @@ func pumpUntil(predicate func() bool, timeout time.Duration) bool {
 }
 
 func main() {
+	maxResults := flag.Int("max-results", 10, "maximum lobby results to request")
+	timeout := flag.Duration("timeout", 10*time.Second, "time to wait for the lobby query")
+	flag.Parse()
+
 	if !steamworks.IsSteamRunning() {
 		fmt.Fprintln(os.Stderr, "Steam is not running.")
 		os.Exit(1)
@@ -32,8 +37,9 @@ func main() {
 	}
 	defer steamworks.Shutdown()
 
+	steamworks.Matchmaking.AddRequestLobbyListResultCountFilter(*maxResults)
 	steamworks.Lobby.RequestList()
-	if !pumpUntil(steamworks.Lobby.IsListComplete, 10*time.Second) {
+	if !pumpUntil(steamworks.Lobby.IsListComplete, *timeout) {
 		fmt.Fprintln(os.Stderr, "Timed out waiting for lobby list.")
 		os.Exit(1)
 	}
@@ -48,6 +54,9 @@ func main() {
 	for index := 0; index < int(count); index++ {
 		lobbyID := steamworks.Lobby.ListLobbyByIndex(index)
 		lobbyName := steamworks.Lobby.ListLobbyNameByIndex(index)
-		fmt.Printf("%d: %d %s\n", index, lobbyID, lobbyName)
+		members := steamworks.Matchmaking.GetNumLobbyMembers(uint64(lobbyID))
+		memberLimit := steamworks.Matchmaking.GetLobbyMemberLimit(uint64(lobbyID))
+		ownerID := steamworks.Matchmaking.GetLobbyOwner(uint64(lobbyID))
+		fmt.Printf("%d: %d name=%q members=%d/%d owner=%d\n", index, lobbyID, lobbyName, members, memberLimit, ownerID)
 	}
 }
