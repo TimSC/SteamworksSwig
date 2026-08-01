@@ -818,6 +818,9 @@ void Steam_ClearHelperState()
 
 void Steam_Shutdown()
 {
+	Steam_NetworkingSockets_RunCallbacks();
+	SteamAPI_RunCallbacks();
+	Steam_NetworkingSockets_RunCallbacks();
 	Steam_ClearHelperState();
 	SteamAPI_Shutdown();
 	g_callbackDispatchMode.store( k_CallbackDispatchModeUninitialized );

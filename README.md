@@ -92,6 +92,52 @@ creates the intentionally SDK-free source archive and then attempts to compile
 a wheel from that isolated archive. Such a wheel build cannot succeed unless
 the external SDK location is explicitly available inside the second build.
 
+## Generation Pipeline
+
+```text
+Steamworks SDK metadata
+        |
+        v
+shared normalized API model
+        |
+        v
+C ABI + helper shim
+        |
+        v
+Python / Go / Lua / other bindings
+```
+
+The C ABI should become the primary generated product. Language bindings should
+wrap the same `SWS_*` surface so lifecycle fixes, helper functions, callback
+IDs, and type rules are shared.
+
+## Shared API Model
+
+The generator writes a shared model file:
+
+```text
+generated/steamworks_c_api_model.json
+```
+
+Each entry should include enough information for language backends and docs:
+
+```json
+{
+  "interface": "Apps",
+  "method": "IsSubscribed",
+  "raw_c_name": "SWS_SteamAPI_ISteamApps_BIsSubscribed",
+  "friendly_name": "IsSubscribed",
+  "return_type": "bool",
+  "params": [],
+  "callback_safe": true,
+  "language_support": "scalar_string"
+}
+```
+
+The model now records skipped methods and reasons, such as pointer output
+buffers, unsupported structs, callback function pointers, interface pointers, or
+owned result lifetimes.
+
 ### Linux wheels for PyPI
 
 PyPI does not accept generic `linux_x86_64` wheels. Build repaired manylinux

@@ -64,6 +64,139 @@ HAND_WRITTEN_METHODS = {
 }
 
 
+LUA_CALLBACK_HELPERS = """
+local function unescape_callback_payload_value(value)
+    if string.find(value, "\\\\", 1, true) == nil then
+        return value
+    end
+
+    local result = {}
+    local escaped = false
+    for index = 1, #value do
+        local ch = string.sub(value, index, index)
+        if escaped then
+            if ch == "t" then
+                table.insert(result, "\\t")
+            elseif ch == "n" then
+                table.insert(result, "\\n")
+            elseif ch == "r" then
+                table.insert(result, "\\r")
+            elseif ch == "\\\\" then
+                table.insert(result, "\\\\")
+            else
+                table.insert(result, "\\\\")
+                table.insert(result, ch)
+            end
+            escaped = false
+        elseif ch == "\\\\" then
+            escaped = true
+        else
+            table.insert(result, ch)
+        end
+    end
+    if escaped then
+        table.insert(result, "\\\\")
+    end
+    return table.concat(result)
+end
+
+function steamworks.parse_callback_payload(data)
+    local payload = {}
+    if data == nil or data == "" then
+        return payload
+    end
+
+    for field in string.gmatch(data, "[^\\t]+") do
+        local separator = string.find(field, "=", 1, true)
+        if separator ~= nil and separator > 1 then
+            local key = string.sub(field, 1, separator - 1)
+            local value = string.sub(field, separator + 1)
+            payload[key] = unescape_callback_payload_value(value)
+        end
+    end
+    return payload
+end
+
+local function attach_callback_payload_methods(callback)
+    function callback:payload()
+        return steamworks.parse_callback_payload(self.data)
+    end
+    function callback:api_call_result_payload()
+        return steamworks.parse_callback_payload(self.api_call_result_data)
+    end
+    return callback
+end
+
+function steamworks.manual_dispatch_init()
+    raw.SWS_Steam_ManualDispatch_Init()
+end
+
+function steamworks.manual_dispatch_run_frame()
+    raw.SWS_Steam_ManualDispatch_RunFrame(raw.SWS_Steam_GetHSteamPipe())
+end
+
+function steamworks.callback_dispatch_mode()
+    return raw.SWS_Steam_GetCallbackDispatchMode()
+end
+
+function steamworks.poll_callback()
+    local pipe = raw.SWS_Steam_GetHSteamPipe()
+    raw.SWS_Steam_ManualDispatch_RunFrame(pipe)
+    if not raw.SWS_Steam_ManualDispatch_GetNextCallback(pipe) then
+        return nil
+    end
+
+    local callback = {
+        steam_user = raw.SWS_Steam_ManualDispatch_GetCallbackSteamUser(),
+        id = raw.SWS_Steam_ManualDispatch_GetCallbackID(),
+        data = raw.SWS_Steam_ManualDispatch_GetCallbackData(),
+        size = raw.SWS_Steam_ManualDispatch_GetCallbackSize(),
+        api_call_completed = raw.SWS_Steam_ManualDispatch_CallbackIsAPICallCompleted(),
+    }
+
+    if callback.api_call_completed then
+        callback.completed_api_call = raw.SWS_Steam_ManualDispatch_GetCompletedAPICall()
+        callback.completed_callback_id = raw.SWS_Steam_ManualDispatch_GetCompletedCallbackID()
+        callback.completed_callback_size = raw.SWS_Steam_ManualDispatch_GetCompletedCallbackSize()
+        if raw.SWS_Steam_ManualDispatch_GetAPICallResult(
+            pipe,
+            callback.completed_api_call,
+            callback.completed_callback_size,
+            callback.completed_callback_id
+        ) then
+            callback.api_call_result_data = raw.SWS_Steam_ManualDispatch_GetAPICallResultData()
+            callback.api_call_result_failed = raw.SWS_Steam_ManualDispatch_GetAPICallResultFailed()
+        end
+    end
+
+    raw.SWS_Steam_ManualDispatch_FreeLastCallback(pipe)
+    return attach_callback_payload_methods(callback)
+end
+
+function steamworks.poll_callbacks(handler)
+    local count = 0
+    while true do
+        local callback = steamworks.poll_callback()
+        if callback == nil then
+            return count
+        end
+        count = count + 1
+        if handler ~= nil then
+            handler(callback)
+        end
+    end
+end
+
+function steamworks.on_callback_id(callback_id, handler)
+    return function(callback)
+        if callback.id == callback_id and handler ~= nil then
+            handler(callback)
+        end
+    end
+end
+"""
+
+
 def lua_name(value: str, *, drop_get: bool = False) -> str:
     name = python_snake_name(value, drop_get=drop_get)
     if name in LUA_KEYWORDS:
@@ -219,6 +352,8 @@ def generate(model: dict) -> str:
         lines.append("end")
         lines.append("")
 
+    lines.extend(LUA_CALLBACK_HELPERS.strip().splitlines())
+    lines.append("")
     lines.append("return steamworks")
     lines.append("")
     return "\n".join(lines)

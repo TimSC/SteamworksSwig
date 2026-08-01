@@ -158,6 +158,7 @@ def main() -> int:
         default=os.environ.get("LUA_PKG_CONFIG", "lua5.3"),
         help="pkg-config package that provides Lua compiler/linker flags",
     )
+    parser.add_argument("--debug", action="store_true", help="Compile the Lua module with debug symbols")
     parser.add_argument("--skip-build", action="store_true", help="Generate files but do not compile the Lua module")
     args = parser.parse_args()
 
@@ -226,6 +227,8 @@ def main() -> int:
             "-o",
             str(output),
         ]
+        if args.debug:
+            compile_command[1:1] = ["-g", "-O0"]
         if goos in {"linux", "darwin"}:
             compile_command.insert(-2, f"-Wl,-rpath,{lib_dir}")
         run(compile_command, cwd=ROOT)
