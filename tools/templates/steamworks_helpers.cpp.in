@@ -854,6 +854,19 @@ void Steam_Shutdown()
 	g_callbackDispatchMode.store( k_CallbackDispatchModeUninitialized );
 }
 
+void Steam_ShutdownManualDispatch()
+{
+	const HSteamPipe pipe = SteamAPI_GetHSteamPipe();
+	SteamAPI_ManualDispatch_RunFrame( pipe );
+	while ( SteamAPI_ManualDispatch_GetNextCallback( pipe, &g_manualDispatchCallback ) )
+	{
+		SteamAPI_ManualDispatch_FreeLastCallback( pipe );
+	}
+	Steam_ClearHelperState();
+	SteamAPI_Shutdown();
+	g_callbackDispatchMode.store( k_CallbackDispatchModeUninitialized );
+}
+
 void Steam_RunCallbacks()
 {
 	SelectCallbackDispatchMode( k_CallbackDispatchModeAutomatic, "Steam_RunCallbacks" );

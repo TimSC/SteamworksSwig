@@ -7,14 +7,14 @@ Regenerate it after changing the SDK, C ABI generator, or curated helper list.
 
 - SDK interface methods supported by the generated C ABI: 600 of 921 (65.1%)
 - SDK interface methods currently skipped: 321
-- Total C ABI functions, including manual helpers: 933
+- Total C ABI functions, including manual helpers: 934
 
 ## C ABI Function Sources
 
 | Source | Functions |
 | --- | ---: |
 | Curated C-safe helpers | 190 |
-| Manual lifecycle/global helpers | 44 |
+| Manual lifecycle/global helpers | 45 |
 | Manual-dispatch callback helpers | 99 |
 | SDK methods | 600 |
 
@@ -23,7 +23,7 @@ Regenerate it after changing the SDK, C ABI generator, or curated helper list.
 | Bucket | Functions |
 | --- | ---: |
 | `bytes_or_bytes_list` | 15 |
-| `scalar` | 803 |
+| `scalar` | 804 |
 | `scalar_string` | 104 |
 | `string_list` | 11 |
 

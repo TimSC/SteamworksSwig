@@ -38,6 +38,19 @@ interfaces. It is intended for local manual testing with Steam running, not for
 default CI, and avoids operations such as auth-ticket creation, file writes,
 lobby creation, stat updates, and other state-changing calls.
 
+To compare automatic and manual callback dispatch on async calls:
+
+```bash
+python3 examples/python/list_lobbies.py --dispatch auto
+python3 examples/python/list_lobbies.py --dispatch manual
+python3 examples/python/enumerate_following.py --dispatch auto
+python3 examples/python/enumerate_following.py --dispatch manual
+```
+
+The following-list example exercises `Friends.EnumerateFollowingList`, a
+low-impact `SteamAPICall_t` request that does not create lobbies or change
+account state.
+
 ## Python API
 
 Python exposes a generated grouped API over the C ABI:

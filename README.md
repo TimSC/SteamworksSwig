@@ -180,7 +180,7 @@ tools/build_manylinux_wheels.sh --sdk-dir sdk
 ```
 
 By default this uses `quay.io/pypa/manylinux2014_x86_64` and builds CPython
-3.9-3.15 wheels into `wheelhouse/`. Limit the matrix when required:
+3.10-3.15 wheels into `wheelhouse/`. Limit the matrix when required:
 
 ```bash
 tools/build_manylinux_wheels.sh \
@@ -204,7 +204,7 @@ SWIG, and the Python Launcher installed:
 .\tools\build_windows_wheels.ps1 -SdkDir C:\path\to\steamworks\sdk
 ```
 
-It builds CPython 3.9-3.15 `win_amd64` wheels into `wheelhouse`. Build a smaller
+It builds CPython 3.10-3.15 `win_amd64` wheels into `wheelhouse`. Build a smaller
 matrix with:
 
 ```powershell

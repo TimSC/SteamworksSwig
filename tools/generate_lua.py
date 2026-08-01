@@ -60,6 +60,7 @@ HAND_WRITTEN_METHODS = {
         "SWS_Steam_IsSteamRunning",
         "SWS_Steam_RunCallbacks",
         "SWS_Steam_Shutdown",
+        "SWS_Steam_ShutdownManualDispatch",
     },
 }
 
@@ -311,6 +312,10 @@ def generate(model: dict) -> str:
         "function steamworks.shutdown()",
         "    raw.SWS_Steam_ClearHelperState()",
         "    raw.SWS_Steam_Shutdown()",
+        "end",
+        "",
+        "function steamworks.shutdown_manual_dispatch()",
+        "    raw.SWS_Steam_ShutdownManualDispatch()",
         "end",
         "",
         "function steamworks.run_callbacks()",

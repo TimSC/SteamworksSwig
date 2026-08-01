@@ -141,6 +141,21 @@ It applies a result-count filter to the next lobby query, waits for the
 `LobbyMatchList` result, and prints each returned lobby's ID, name, member
 count, member limit, and owner.
 
+The lobby-list example can use either callback dispatch path:
+
+```bash
+go run examples/go/list_lobbies.go --dispatch auto
+go run examples/go/list_lobbies.go --dispatch manual
+```
+
+To exercise another low-impact async `SteamAPICall_t` request without creating
+lobbies or changing account state:
+
+```bash
+go run examples/go/enumerate_following.go --dispatch auto
+go run examples/go/enumerate_following.go --dispatch manual
+```
+
 For a broader low-impact live API sweep:
 
 ```bash

@@ -4,6 +4,7 @@
     ["int", "Steam_InitEx", []],
     ["int", "Steam_InitFlat", []],
     ["void", "Steam_Shutdown", []],
+    ["void", "Steam_ShutdownManualDispatch", []],
     ["void", "Steam_ClearHelperState", []],
     ["void", "Steam_RunCallbacks", []],
     ["int", "Steam_GetCallbackDispatchMode", []],

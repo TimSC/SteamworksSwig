@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$SdkDir = $env:STEAMWORKS_SDK_DIR,
-    [string[]]$PythonVersions = @("3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "3.15"),
+    [string[]]$PythonVersions = @("3.10", "3.11", "3.12", "3.13", "3.14", "3.15"),
     [string]$Wheelhouse = "",
     [switch]$SkipDependencyInstall,
     [switch]$KeepBuildArtifacts

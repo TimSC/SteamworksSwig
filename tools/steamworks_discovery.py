@@ -42,6 +42,7 @@ def infer_interface_from_wrapper(name: str) -> str:
             "InitEx",
             "InitFlat",
             "Shutdown",
+            "ShutdownManualDispatch",
             "ClearHelperState",
             "RunCallbacks",
             "IsSteamRunning",

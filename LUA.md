@@ -47,8 +47,20 @@ examples:
 LUA_PATH="./lua/?.lua;;" LUA_CPATH="./lua/?.so;;" lua examples/lua/list_lobbies.lua
 ```
 
-The lobby example also supports `--max-results N`, `--max-results=N`,
-`--timeout N`, `--timeout=N`, and the diagnostic `--skip-shutdown` flag.
+The lobby example also supports `--dispatch auto`, `--dispatch manual`,
+`--max-results N`, `--max-results=N`, `--timeout N`, `--timeout=N`, and the
+diagnostic `--skip-shutdown` flag.
+
+To exercise another low-impact async call that uses `SteamAPICall_t` without
+creating lobbies or changing account state:
+
+```bash
+LUA_PATH="./lua/?.lua;;" LUA_CPATH="./lua/?.so;;" lua examples/lua/enumerate_following.lua
+```
+
+The following-list example also supports `--dispatch auto`,
+`--dispatch manual`, `--start-index N`, `--start-index=N`, `--timeout N`,
+`--timeout=N`, and the diagnostic `--skip-shutdown` flag.
 
 ## Callbacks
 
