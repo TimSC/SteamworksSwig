@@ -149,7 +149,7 @@ tools/build_manylinux_wheels.sh --sdk-dir sdk
 ```
 
 By default this uses `quay.io/pypa/manylinux2014_x86_64` and builds CPython
-3.9-3.14 wheels into `wheelhouse/`. Limit the matrix when required:
+3.9-3.15 wheels into `wheelhouse/`. Limit the matrix when required:
 
 ```bash
 tools/build_manylinux_wheels.sh \
@@ -173,7 +173,7 @@ SWIG, and the Python Launcher installed:
 .\tools\build_windows_wheels.ps1 -SdkDir C:\path\to\steamworks\sdk
 ```
 
-It builds CPython 3.9-3.13 `win_amd64` wheels into `wheelhouse`. Build a smaller
+It builds CPython 3.9-3.15 `win_amd64` wheels into `wheelhouse`. Build a smaller
 matrix with:
 
 ```powershell
@@ -254,6 +254,27 @@ game-server, lobby, manual-dispatch, callback cleanup, byte-buffer helpers,
 string/vector helpers, and selected async helper APIs. Pointer output buffers,
 callback function pointers, C++ reference types, interface pointers, and
 unsupported SDK structs still need explicit C-safe adapters.
+
+### Helper Specs
+
+Most C ABI functions are generated directly from Valve's flat API metadata.
+Helpers are the exception: they are project-defined adapters for APIs that need
+more intent than the SDK headers provide. Examples include lifecycle entry
+points, lobby conveniences, callback/manual-dispatch glue, byte buffers, owned
+strings, owned string lists, and APIs where the native SDK expects caller-owned
+output memory.
+
+These helpers are listed in `tools/helper_specs.json` and loaded by
+`tools/steamworks_helpers.py`. Keeping the list as data makes the curated API
+surface easier to review while still letting `tools/generate_core.py` emit the
+matching C declarations, wrappers, and model entries. The C++ helper
+implementations remain in the templates where behavior is required.
+
+Some helper candidates can be discovered automatically from common SDK
+signature patterns, such as string output buffers. Those generated candidates
+still need promotion into the helper spec before they become part of the stable
+binding surface, because the headers do not always say whether a buffer is text,
+binary data, an array, or part of a multi-call ownership protocol.
 
 ## API Coverage
 
