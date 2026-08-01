@@ -77,6 +77,4 @@
     $1 = PyBytes_Check($input) ? 1 : 0;
 }
 
-{{ python_swig_renames }}
-
 %include "steamworks_c_api.h"

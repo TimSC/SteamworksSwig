@@ -30,28 +30,28 @@ def event_int(event: dict[str, str], key: str) -> int:
 
 
 def init_steam() -> bool:
-    if not steamworks.Steam_IsSteamRunning():
+    if not steamworks.is_steam_running():
         print("Steam is not running.", file=sys.stderr)
         return False
 
-    result = steamworks.Steam_InitEx()
+    result = steamworks.init_ex()
     if result != 0:
-        print(f"Steam_InitEx failed ({result}): {steamworks.Steam_GetLastInitError()}", file=sys.stderr)
+        print(f"steamworks.init_ex() failed ({result}): {steamworks.last_init_error()}", file=sys.stderr)
         return False
 
-    steamworks.Steam_NetworkingUtils_InitRelayNetworkAccess()
-    steamworks.Steam_NetworkingSockets_EnableConnectionStatusCallbacks()
-    steamworks.Steam_NetworkingSockets_ClearConnectionStatusChangedEvents()
+    steamworks.networking_utils.init_relay_network_access()
+    steamworks.networking_sockets.enable_connection_status_callbacks()
+    steamworks.networking_sockets.clear_connection_status_changed_events()
     return True
 
 
 def print_events(connections: set[int]) -> None:
-    connecting = steamworks.Steam_NetworkingConnectionState_Connecting()
-    connected = steamworks.Steam_NetworkingConnectionState_Connected()
-    closed = steamworks.Steam_NetworkingConnectionState_ClosedByPeer()
-    problem = steamworks.Steam_NetworkingConnectionState_ProblemDetectedLocally()
+    connecting = steamworks.networking_constants.networking_connection_state_connecting()
+    connected = steamworks.networking_constants.networking_connection_state_connected()
+    closed = steamworks.networking_constants.networking_connection_state_closed_by_peer()
+    problem = steamworks.networking_constants.networking_connection_state_problem_detected_locally()
 
-    for line in steamworks.Steam_NetworkingSockets_PollConnectionStatusChangedStrings(32):
+    for line in steamworks.networking_sockets.poll_connection_status_changed_strings(32):
         event = parse_event(line)
         connection = event_int(event, "connection")
         listen_socket = event_int(event, "listen_socket")
@@ -66,15 +66,15 @@ def print_events(connections: set[int]) -> None:
             print(f"  end: {end_debug}")
 
         if state == connecting and listen_socket:
-            result = steamworks.Steam_NetworkingSockets_AcceptConnection(connection)
+            result = steamworks.networking_sockets.accept_connection(connection)
             print(f"  accept result: {result}")
         elif state == connected:
             connections.add(connection)
         elif state in (closed, problem):
             connections.discard(connection)
-            steamworks.Steam_NetworkingSockets_CloseConnection(
+            steamworks.networking_sockets.close_connection(
                 connection,
-                steamworks.Steam_NetConnectionEnd_AppGeneric(),
+                steamworks.networking_constants.net_connection_end_app_generic(),
                 "closed",
                 False,
             )
@@ -83,18 +83,18 @@ def print_events(connections: set[int]) -> None:
 def pump(connections: set[int], message: str | None, interval_seconds: float) -> None:
     last_send = 0.0
     while True:
-        steamworks.Steam_RunCallbacks()
+        steamworks.run_callbacks()
         print_events(connections)
 
         for connection in list(connections):
-            for payload in steamworks.Steam_NetworkingSockets_ReceiveMessagesOnConnectionStrings(connection, 32):
+            for payload in steamworks.networking_sockets.receive_messages_on_connection_strings(connection, 32):
                 print(f"recv {connection}: {payload}")
 
             if message and time.monotonic() - last_send >= interval_seconds:
-                result = steamworks.Steam_NetworkingSockets_SendMessageToConnectionString(
+                result = steamworks.networking_sockets.send_message_to_connection_string(
                     connection,
                     message,
-                    steamworks.Steam_NetworkingSend_Reliable(),
+                    steamworks.networking_constants.networking_send_reliable(),
                 )
                 print(f"send {connection}: {result}")
                 last_send = time.monotonic()
@@ -103,24 +103,24 @@ def pump(connections: set[int], message: str | None, interval_seconds: float) ->
 
 
 def listen(args: argparse.Namespace) -> int:
-    listen_socket = steamworks.Steam_NetworkingSockets_CreateListenSocketP2PNoOptions(args.port)
+    listen_socket = steamworks.networking_sockets.create_listen_socket_2_p_no_options(args.port)
     if not listen_socket:
         print("Failed to create P2P listen socket.", file=sys.stderr)
         return 1
 
-    print(f"SteamID: {steamworks.Steam_User_GetSteamID()}")
+    print(f"SteamID: {steamworks.user.steam_id()}")
     print(f"Listening on virtual port {args.port}")
     pump(set(), args.message, args.interval)
     return 0
 
 
 def connect(args: argparse.Namespace) -> int:
-    connection = steamworks.Steam_NetworkingSockets_ConnectP2PSteamIDNoOptions(args.peer, args.port)
+    connection = steamworks.networking_sockets.connect_2_p_steam_id_no_options(args.peer, args.port)
     if not connection:
         print("Failed to create P2P connection.", file=sys.stderr)
         return 1
 
-    print(f"SteamID: {steamworks.Steam_User_GetSteamID()}")
+    print(f"SteamID: {steamworks.user.steam_id()}")
     print(f"Connecting to {args.peer} on virtual port {args.port}, connection {connection}")
     pump(set(), args.message, args.interval)
     return 0
@@ -146,7 +146,7 @@ def main() -> int:
             return listen(args)
         return connect(args)
     finally:
-        steamworks.Steam_Shutdown()
+        steamworks.shutdown()
 
 
 if __name__ == "__main__":

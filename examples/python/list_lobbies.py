@@ -12,7 +12,7 @@ import steamworks
 def pump_until(predicate, timeout_seconds: float = 10.0) -> bool:
     deadline = time.monotonic() + timeout_seconds
     while time.monotonic() < deadline:
-        steamworks.Steam_RunCallbacks()
+        steamworks.run_callbacks()
         if predicate():
             return True
         time.sleep(0.05)
@@ -20,33 +20,33 @@ def pump_until(predicate, timeout_seconds: float = 10.0) -> bool:
 
 
 def main() -> int:
-    if not steamworks.Steam_IsSteamRunning():
+    if not steamworks.is_steam_running():
         print("Steam is not running.", file=sys.stderr)
         return 1
 
-    init_result = steamworks.Steam_InitEx()
+    init_result = steamworks.init_ex()
     if init_result != 0:
-        print(f"Steam_InitEx failed ({init_result}): {steamworks.Steam_GetLastInitError()}", file=sys.stderr)
+        print(f"steamworks.init_ex() failed ({init_result}): {steamworks.last_init_error()}", file=sys.stderr)
         return 1
 
     try:
-        steamworks.Steam_Lobby_RequestList()
-        if not pump_until(steamworks.Steam_Lobby_IsListComplete):
+        steamworks.lobby.request_list()
+        if not pump_until(steamworks.lobby.is_list_complete):
             print("Timed out waiting for lobby list.", file=sys.stderr)
             return 1
 
-        if steamworks.Steam_Lobby_ListHadIOFailure():
+        if steamworks.lobby.list_had_io_failure():
             print("Lobby list request failed with an IO failure.", file=sys.stderr)
             return 1
 
-        count = steamworks.Steam_Lobby_GetListResultCount()
+        count = steamworks.lobby.list_result_count()
         print(f"Found {count} lobbies")
         for index in range(count):
-            lobby_id = steamworks.Steam_Lobby_GetListLobbyByIndex(index)
-            lobby_name = steamworks.Steam_Lobby_GetListLobbyNameByIndex(index)
+            lobby_id = steamworks.lobby.list_lobby_by_index(index)
+            lobby_name = steamworks.lobby.list_lobby_name_by_index(index)
             print(f"{index}: {lobby_id} {lobby_name}")
     finally:
-        steamworks.Steam_Shutdown()
+        steamworks.shutdown()
 
     return 0
 

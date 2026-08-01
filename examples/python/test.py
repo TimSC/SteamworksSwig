@@ -18,28 +18,28 @@ def main() -> int:
         print("Install it first with `pip install .` from this directory.", file=sys.stderr)
         return 1
 
-    if not steamworks.Steam_IsSteamRunning():
-        print("Steam_IsSteamRunning returned false.", file=sys.stderr)
+    if not steamworks.is_steam_running():
+        print("steamworks.is_steam_running() returned false.", file=sys.stderr)
         print("Start Steam, log in, then run this program again from this directory.", file=sys.stderr)
         return 1
 
-    init_result = steamworks.Steam_InitEx()
+    init_result = steamworks.init_ex()
     if init_result != 0:
-        print(f"Steam_InitEx failed ({init_result}): {steamworks.Steam_GetLastInitError()}", file=sys.stderr)
+        print(f"steamworks.init_ex() failed ({init_result}): {steamworks.last_init_error()}", file=sys.stderr)
         print("Make sure Steam is running and steam_appid.txt is in the working directory.", file=sys.stderr)
         return 1
 
     try:
-        steamworks.Steam_RunCallbacks()
+        steamworks.run_callbacks()
 
         print("Hello from Steamworks!")
-        print(f"App ID: {steamworks.Steam_Utils_GetAppID()}")
-        print(f"Logged on: {yes_no(steamworks.Steam_User_BLoggedOn())}")
-        print(f"Persona name: {steamworks.Steam_Friends_GetPersonaName()}")
-        print(f"Steam ID: {steamworks.Steam_User_GetSteamID()}")
-        print(f"Subscribed to app: {yes_no(steamworks.Steam_Apps_BIsSubscribed())}")
+        print(f"App ID: {steamworks.utils.app_id()}")
+        print(f"Logged on: {yes_no(steamworks.user.logged_on())}")
+        print(f"Persona name: {steamworks.friends.persona_name()}")
+        print(f"Steam ID: {steamworks.user.steam_id()}")
+        print(f"Subscribed to app: {yes_no(steamworks.apps.is_subscribed())}")
     finally:
-        steamworks.Steam_Shutdown()
+        steamworks.shutdown()
 
     return 0
 

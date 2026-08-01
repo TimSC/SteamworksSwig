@@ -151,7 +151,7 @@ class Demo:
     def __init__(self, args: argparse.Namespace) -> None:
         self.args = args
         self.state = DemoState(
-            steam_id=steamworks.Steam_User_GetSteamID(),
+            steam_id=steamworks.user.steam_id(),
             virtual_port=args.port,
         )
 
@@ -206,7 +206,7 @@ class Demo:
             print(f"Already hosting on virtual port {self.state.virtual_port}")
             return True
 
-        listen_socket = steamworks.Steam_NetworkingSockets_CreateListenSocketP2PNoOptions(
+        listen_socket = steamworks.networking_sockets.create_listen_socket_2_p_no_options(
             self.state.virtual_port
         )
         if not listen_socket:
@@ -225,20 +225,20 @@ class Demo:
             print("Host is not running.")
             return
 
-        steamworks.Steam_NetworkingSockets_CloseListenSocket(self.state.listen_socket)
+        steamworks.networking_sockets.close_listen_socket(self.state.listen_socket)
         self.state.listen_socket = 0
         print("Stopped P2P host listen socket.")
 
     def advertise_lobby_host(self, lobby_id: int) -> None:
-        steamworks.Steam_Matchmaking_SetLobbyData(lobby_id, "state", "starting")
-        steamworks.Steam_Matchmaking_SetLobbyData(
+        steamworks.matchmaking.set_lobby_data(lobby_id, "state", "starting")
+        steamworks.matchmaking.set_lobby_data(
             lobby_id, "host_steam_id", str(self.state.steam_id)
         )
-        steamworks.Steam_Matchmaking_SetLobbyData(
+        steamworks.matchmaking.set_lobby_data(
             lobby_id, "virtual_port", str(self.state.virtual_port)
         )
-        steamworks.Steam_Matchmaking_SetLobbyData(lobby_id, "state", "playing")
-        steamworks.Steam_Matchmaking_SetLobbyMemberData(lobby_id, "role", "host")
+        steamworks.matchmaking.set_lobby_data(lobby_id, "state", "playing")
+        steamworks.matchmaking.set_lobby_member_data(lobby_id, "role", "host")
 
     def default_connect_string(self) -> str:
         values = [f"steamid={self.state.steam_id}", f"port={self.state.virtual_port}"]
@@ -262,7 +262,7 @@ class Demo:
             print("Rich presence key cannot be empty.")
             return
 
-        updated = steamworks.Steam_Friends_SetRichPresence(key, value)
+        updated = steamworks.friends.set_rich_presence(key, value)
         if not updated:
             print(f"Failed to set rich presence key '{key}'.")
             return
@@ -275,7 +275,7 @@ class Demo:
             print(f"Cleared rich presence key '{key}'.")
 
     def clear_rich_presence(self) -> None:
-        steamworks.Steam_Friends_ClearRichPresence()
+        steamworks.friends.clear_rich_presence()
         self.state.rich_presence.clear()
         print("Cleared rich presence.")
 
@@ -328,7 +328,7 @@ class Demo:
         if not lobby_id:
             print("Create or join a lobby before running lobby host start.")
             return
-        if steamworks.Steam_Matchmaking_GetLobbyOwner(lobby_id) != self.state.steam_id:
+        if steamworks.matchmaking.lobby_owner(lobby_id) != self.state.steam_id:
             print("Only the lobby owner should run lobby host start.")
             return
         if not self.start_host(port):
@@ -351,7 +351,7 @@ class Demo:
 
         if not self.start_host(self.state.virtual_port):
             return
-        steamworks.Steam_Lobby_Create(lobby_type_value(type_name), max_members)
+        steamworks.lobby.create(lobby_type_value(type_name), max_members)
         self.state.awaiting_create = True
         print(
             f"Creating {lobby_type_name(lobby_type_value(type_name))} lobby "
@@ -361,58 +361,58 @@ class Demo:
         self.pending_lobby_type = type_name
 
     def finish_create_if_ready(self) -> None:
-        if not self.state.awaiting_create or not steamworks.Steam_Lobby_IsCreateComplete():
+        if not self.state.awaiting_create or not steamworks.lobby.is_create_complete():
             return
 
         self.state.awaiting_create = False
-        if not steamworks.Steam_Lobby_CreateSucceeded():
-            result = steamworks.Steam_Lobby_GetCreateResult()
+        if not steamworks.lobby.create_succeeded():
+            result = steamworks.lobby.create_result()
             print(
                 "Lobby creation failed "
-                f"(io_failure={yes_no(steamworks.Steam_Lobby_CreateHadIOFailure())}, "
+                f"(io_failure={yes_no(steamworks.lobby.create_had_io_failure())}, "
                 f"result={result})."
             )
             return
 
-        lobby_id = steamworks.Steam_Lobby_GetCreatedLobbyID()
+        lobby_id = steamworks.lobby.created_lobby_id()
         self.state.current_lobby = lobby_id
-        steamworks.Steam_Matchmaking_SetLobbyData(lobby_id, "name", self.pending_lobby_name)
-        steamworks.Steam_Matchmaking_SetLobbyData(lobby_id, "demo", "python")
+        steamworks.matchmaking.set_lobby_data(lobby_id, "name", self.pending_lobby_name)
+        steamworks.matchmaking.set_lobby_data(lobby_id, "demo", "python")
         self.advertise_lobby_host(lobby_id)
-        steamworks.Steam_Matchmaking_SetLobbyJoinable(lobby_id, True)
+        steamworks.matchmaking.set_lobby_joinable(lobby_id, True)
         print(f"Created lobby {lobby_id}. Other clients can run: lobby join {lobby_id}")
 
     def request_lobbies(self) -> None:
         if self.state.awaiting_list:
             print("Lobby list request is already pending.")
             return
-        steamworks.Steam_Matchmaking_AddRequestLobbyListStringFilter(
+        steamworks.matchmaking.add_request_lobby_list_string_filter(
             "demo", "python", steamworks.k_ELobbyComparisonEqual
         )
-        steamworks.Steam_Lobby_RequestList()
+        steamworks.lobby.request_list()
         self.state.awaiting_list = True
         print("Requesting lobby list...")
 
     def finish_list_if_ready(self) -> None:
-        if not self.state.awaiting_list or not steamworks.Steam_Lobby_IsListComplete():
+        if not self.state.awaiting_list or not steamworks.lobby.is_list_complete():
             return
 
         self.state.awaiting_list = False
         self.state.lobby_results.clear()
-        if steamworks.Steam_Lobby_ListHadIOFailure():
+        if steamworks.lobby.list_had_io_failure():
             print("Lobby list request failed with an IO failure.")
             return
 
-        count = steamworks.Steam_Lobby_GetListResultCount()
+        count = steamworks.lobby.list_result_count()
         print(f"Found {count} lobby/lobbies")
         for index in range(count):
-            lobby_id = steamworks.Steam_Lobby_GetListLobbyByIndex(index)
+            lobby_id = steamworks.lobby.list_lobby_by_index(index)
             self.state.lobby_results.append(lobby_id)
-            name = steamworks.Steam_Matchmaking_GetLobbyData(lobby_id, "name") or "(unnamed)"
-            host = steamworks.Steam_Matchmaking_GetLobbyData(lobby_id, "host_steam_id")
-            port = steamworks.Steam_Matchmaking_GetLobbyData(lobby_id, "virtual_port")
-            members = steamworks.Steam_Matchmaking_GetNumLobbyMembers(lobby_id)
-            limit = steamworks.Steam_Matchmaking_GetLobbyMemberLimit(lobby_id)
+            name = steamworks.matchmaking.lobby_data(lobby_id, "name") or "(unnamed)"
+            host = steamworks.matchmaking.lobby_data(lobby_id, "host_steam_id")
+            port = steamworks.matchmaking.lobby_data(lobby_id, "virtual_port")
+            members = steamworks.matchmaking.num_lobby_members(lobby_id)
+            limit = steamworks.matchmaking.lobby_member_limit(lobby_id)
             print(f"  [{index}] {lobby_id} {name} host={host} port={port} {members}/{limit}")
 
     def join_lobby(self, parts: list[str]) -> None:
@@ -428,30 +428,30 @@ class Demo:
         if 0 <= value < len(self.state.lobby_results):
             lobby_id = self.state.lobby_results[value]
 
-        steamworks.Steam_Lobby_Join(lobby_id)
+        steamworks.lobby.join(lobby_id)
         self.state.awaiting_join = True
         print(f"Joining lobby {lobby_id}...")
 
     def finish_join_if_ready(self) -> None:
-        if not self.state.awaiting_join or not steamworks.Steam_Lobby_IsJoinComplete():
+        if not self.state.awaiting_join or not steamworks.lobby.is_join_complete():
             return
 
         self.state.awaiting_join = False
-        if not steamworks.Steam_Lobby_JoinSucceeded():
+        if not steamworks.lobby.join_succeeded():
             print(
                 "Lobby join failed "
-                f"(io_failure={yes_no(steamworks.Steam_Lobby_JoinHadIOFailure())}, "
-                f"response={steamworks.Steam_Lobby_GetJoinResponse()})."
+                f"(io_failure={yes_no(steamworks.lobby.join_had_io_failure())}, "
+                f"response={steamworks.lobby.join_response()})."
             )
             return
 
-        lobby_id = steamworks.Steam_Lobby_GetJoinedLobbyID()
+        lobby_id = steamworks.lobby.joined_lobby_id()
         self.state.current_lobby = lobby_id
-        steamworks.Steam_Matchmaking_SetLobbyMemberData(lobby_id, "role", "client")
+        steamworks.matchmaking.set_lobby_member_data(lobby_id, "role", "client")
         print(f"Joined lobby {lobby_id}")
 
-        host = steamworks.Steam_Matchmaking_GetLobbyData(lobby_id, "host_steam_id")
-        port = steamworks.Steam_Matchmaking_GetLobbyData(lobby_id, "virtual_port")
+        host = steamworks.matchmaking.lobby_data(lobby_id, "host_steam_id")
+        port = steamworks.matchmaking.lobby_data(lobby_id, "virtual_port")
         if not host:
             print("Lobby has no host_steam_id metadata. Use client connect <steamid> manually.")
             return
@@ -468,7 +468,7 @@ class Demo:
 
     def connect_to_peer(self, peer: int, port: int | None = None) -> None:
         remote_port = self.state.virtual_port if port is None else port
-        connection = steamworks.Steam_NetworkingSockets_ConnectP2PSteamIDNoOptions(
+        connection = steamworks.networking_sockets.connect_2_p_steam_id_no_options(
             peer, remote_port
         )
         if not connection:
@@ -482,11 +482,11 @@ class Demo:
         if not lobby_id or self.state.listen_socket:
             return
 
-        state = steamworks.Steam_Matchmaking_GetLobbyData(lobby_id, "state")
+        state = steamworks.matchmaking.lobby_data(lobby_id, "state")
         if state not in {"starting", "playing"}:
             return
 
-        host = steamworks.Steam_Matchmaking_GetLobbyData(lobby_id, "host_steam_id")
+        host = steamworks.matchmaking.lobby_data(lobby_id, "host_steam_id")
         if not host:
             return
 
@@ -499,7 +499,7 @@ class Demo:
 
         try:
             port = int(
-                steamworks.Steam_Matchmaking_GetLobbyData(lobby_id, "virtual_port")
+                steamworks.matchmaking.lobby_data(lobby_id, "virtual_port")
                 or self.state.virtual_port
             )
         except ValueError:
@@ -512,12 +512,12 @@ class Demo:
         self.connect_to_peer(host_steam_id, port)
 
     def poll_network_events(self) -> None:
-        connecting = steamworks.Steam_NetworkingConnectionState_Connecting()
-        connected = steamworks.Steam_NetworkingConnectionState_Connected()
-        closed = steamworks.Steam_NetworkingConnectionState_ClosedByPeer()
-        problem = steamworks.Steam_NetworkingConnectionState_ProblemDetectedLocally()
+        connecting = steamworks.networking_constants.networking_connection_state_connecting()
+        connected = steamworks.networking_constants.networking_connection_state_connected()
+        closed = steamworks.networking_constants.networking_connection_state_closed_by_peer()
+        problem = steamworks.networking_constants.networking_connection_state_problem_detected_locally()
 
-        for line in steamworks.Steam_NetworkingSockets_PollConnectionStatusChangedStrings(32):
+        for line in steamworks.networking_sockets.poll_connection_status_changed_strings(32):
             event = parse_event(line)
             connection = event_int(event, "connection")
             listen_socket = event_int(event, "listen_socket")
@@ -534,36 +534,36 @@ class Demo:
                 self.state.connection_peers[connection] = remote
 
             if state == connecting and listen_socket:
-                result = steamworks.Steam_NetworkingSockets_AcceptConnection(connection)
+                result = steamworks.networking_sockets.accept_connection(connection)
                 print(f"  accepted connection {connection}: {result}")
             elif state == connected:
                 self.state.connections.add(connection)
             elif state in (closed, problem):
                 self.state.connections.discard(connection)
                 self.state.connection_peers.pop(connection, None)
-                steamworks.Steam_NetworkingSockets_CloseConnection(
+                steamworks.networking_sockets.close_connection(
                     connection,
-                    steamworks.Steam_NetConnectionEnd_AppGeneric(),
+                    steamworks.networking_constants.net_connection_end_app_generic(),
                     "closed",
                     False,
                 )
 
     def poll_messages(self) -> None:
         for connection in list(self.state.connections):
-            messages = steamworks.Steam_NetworkingSockets_ReceiveMessagesOnConnectionStrings(
+            messages = steamworks.networking_sockets.receive_messages_on_connection_strings(
                 connection, 32
             )
             for payload in messages:
                 print(f"recv {connection}: {payload}")
 
     def poll_lobby_chat_messages(self) -> None:
-        for line in steamworks.Steam_Lobby_PollChatMessages(32):
+        for line in steamworks.lobby.poll_chat_messages(32):
             event = parse_event(line)
             lobby_id = event_int(event, "lobby")
             user_id = event_int(event, "user")
             chat_id = event_int(event, "chat_id")
             message = unescape_event_field(event.get("message", ""))
-            name = steamworks.Steam_Friends_GetFriendPersonaName(user_id) or str(user_id)
+            name = steamworks.friends.friend_persona_name(user_id) or str(user_id)
             formatted = f"lobby chat {lobby_id} #{chat_id} {name}: {message}"
             self.state.chat_history.append(formatted)
             print(formatted)
@@ -573,10 +573,10 @@ class Demo:
             print("No connected peers.")
             return
         for connection in list(self.state.connections):
-            result = steamworks.Steam_NetworkingSockets_SendMessageToConnectionString(
+            result = steamworks.networking_sockets.send_message_to_connection_string(
                 connection,
                 message,
-                steamworks.Steam_NetworkingSend_Reliable(),
+                steamworks.networking_constants.networking_send_reliable(),
             )
             print(f"send {connection}: {result}")
 
@@ -585,11 +585,11 @@ class Demo:
         if not lobby_id:
             print("Not in a lobby.")
             return
-        count = steamworks.Steam_Matchmaking_GetNumLobbyMembers(lobby_id)
+        count = steamworks.matchmaking.num_lobby_members(lobby_id)
         print(f"Lobby {lobby_id} members:")
         for index in range(count):
-            member = steamworks.Steam_Matchmaking_GetLobbyMemberByIndex(lobby_id, index)
-            role = steamworks.Steam_Matchmaking_GetLobbyMemberData(lobby_id, member, "role")
+            member = steamworks.matchmaking.lobby_member_by_index(lobby_id, index)
+            role = steamworks.matchmaking.lobby_member_data(lobby_id, member, "role")
             print(f"  {member} role={role}")
 
     def handle_lobby_member_command(self, parts: list[str]) -> None:
@@ -608,24 +608,24 @@ class Demo:
                 return
             key = parts[3]
             value = " ".join(parts[4:])
-            steamworks.Steam_Matchmaking_SetLobbyMemberData(lobby_id, key, value)
+            steamworks.matchmaking.set_lobby_member_data(lobby_id, key, value)
             print(f"Set local member {key}={value}")
         elif action == "get":
             if len(parts) < 5:
                 print("Usage: lobby member get <member-index|steamid> <key>")
                 return
             member_id = self.resolve_lobby_member_id(parts[3])
-            value = steamworks.Steam_Matchmaking_GetLobbyMemberData(lobby_id, member_id, parts[4])
+            value = steamworks.matchmaking.lobby_member_data(lobby_id, member_id, parts[4])
             print(f"{member_id} {parts[4]}={value}")
         elif action == "list":
             keys = parts[3:] if len(parts) > 3 else ["role", "ready", "team", "character"]
-            count = steamworks.Steam_Matchmaking_GetNumLobbyMembers(lobby_id)
+            count = steamworks.matchmaking.num_lobby_members(lobby_id)
             print(f"Lobby {lobby_id} member metadata:")
             for index in range(count):
-                member = steamworks.Steam_Matchmaking_GetLobbyMemberByIndex(lobby_id, index)
-                name = steamworks.Steam_Friends_GetFriendPersonaName(member) or "(unknown)"
+                member = steamworks.matchmaking.lobby_member_by_index(lobby_id, index)
+                name = steamworks.friends.friend_persona_name(member) or "(unknown)"
                 values = [
-                    f"{key}={steamworks.Steam_Matchmaking_GetLobbyMemberData(lobby_id, member, key)}"
+                    f"{key}={steamworks.matchmaking.lobby_member_data(lobby_id, member, key)}"
                     for key in keys
                 ]
                 print(f"  [{index}] {member} {name} " + " ".join(values))
@@ -641,7 +641,7 @@ class Demo:
         for index, connection in enumerate(sorted(self.state.connections)):
             steam_id = self.state.connection_peers.get(connection, 0)
             if steam_id:
-                name = steamworks.Steam_Friends_GetFriendPersonaName(steam_id) or "(unknown)"
+                name = steamworks.friends.friend_persona_name(steam_id) or "(unknown)"
                 print(f"  [{index}] conn={connection} steam_id={steam_id} name={name}")
             else:
                 print(f"  [{index}] conn={connection} steam_id=(unknown)")
@@ -659,8 +659,8 @@ class Demo:
 
         for connection in connections:
             peer = self.state.connection_peers.get(connection, 0)
-            name = steamworks.Steam_NetworkingSockets_GetConnectionNameString(connection)
-            detail = steamworks.Steam_NetworkingSockets_GetDetailedConnectionStatusString(connection)
+            name = steamworks.networking_sockets.connection_name_string(connection)
+            detail = steamworks.networking_sockets.detailed_connection_status_string(connection)
             print(f"Connection {connection} peer={peer} name={name or '(unnamed)'}")
             print(detail or "  (no detail)")
 
@@ -671,7 +671,7 @@ class Demo:
             return
 
         for connection in connections:
-            result = steamworks.Steam_NetworkingSockets_FlushMessagesOnConnection(connection)
+            result = steamworks.networking_sockets.flush_messages_on_connection(connection)
             print(f"flush {connection}: {result}")
 
     def name_connection(self, parts: list[str]) -> None:
@@ -680,28 +680,28 @@ class Demo:
             return
         connection = int(parts[2])
         name = " ".join(parts[3:])
-        steamworks.Steam_NetworkingSockets_SetConnectionName(connection, name)
+        steamworks.networking_sockets.set_connection_name(connection, name)
         print(f"Named connection {connection}: {name}")
 
     def list_online_friends(self) -> None:
         self.state.online_friends.clear()
-        count = steamworks.Steam_Friends_GetFriendCount(steamworks.Steam_FriendFlagImmediate())
+        count = steamworks.friends.friend_count(steamworks.friends_constants.friend_flag_immediate())
         print("Online friends:")
         for index in range(count):
-            friend_id = steamworks.Steam_Friends_GetFriendByIndex(
-                index, steamworks.Steam_FriendFlagImmediate()
+            friend_id = steamworks.friends.friend_by_index(
+                index, steamworks.friends_constants.friend_flag_immediate()
             )
-            state = steamworks.Steam_Friends_GetFriendPersonaState(friend_id)
+            state = steamworks.friends.friend_persona_state(friend_id)
             if state == steamworks.k_EPersonaStateOffline:
                 continue
 
             display_index = len(self.state.online_friends)
             self.state.online_friends.append(friend_id)
-            name = steamworks.Steam_Friends_GetFriendPersonaName(friend_id) or "(unknown)"
-            in_game = yes_no(steamworks.Steam_Friends_IsFriendInCurrentGame(friend_id))
-            steamworks.Steam_Friends_RequestFriendRichPresence(friend_id)
-            status = steamworks.Steam_Friends_GetFriendRichPresence(friend_id, "status")
-            connect = steamworks.Steam_Friends_GetFriendRichPresence(friend_id, "connect")
+            name = steamworks.friends.friend_persona_name(friend_id) or "(unknown)"
+            in_game = yes_no(steamworks.friends.is_friend_in_current_game(friend_id))
+            steamworks.friends.request_friend_rich_presence(friend_id)
+            status = steamworks.friends.friend_rich_presence(friend_id, "status")
+            connect = steamworks.friends.friend_rich_presence(friend_id, "connect")
             print(
                 f"  [{display_index}] {name} {friend_id} "
                 f"state={persona_state_name(state)} in_current_game={in_game}"
@@ -728,8 +728,8 @@ class Demo:
         if 0 <= value < len(self.state.online_friends):
             friend_id = self.state.online_friends[value]
 
-        name = steamworks.Steam_Friends_GetFriendPersonaName(friend_id) or str(friend_id)
-        invited = steamworks.Steam_Matchmaking_InviteUserToLobby(lobby_id, friend_id)
+        name = steamworks.friends.friend_persona_name(friend_id) or str(friend_id)
+        invited = steamworks.matchmaking.invite_user_to_lobby(lobby_id, friend_id)
         if invited:
             print(f"Invited {name} ({friend_id}) to lobby {lobby_id}.")
         else:
@@ -750,7 +750,7 @@ class Demo:
                 print("Usage: lobby chat send <message>")
                 return
             message = " ".join(parts[3:])
-            sent = steamworks.Steam_Lobby_SendChatMessage(lobby_id, message)
+            sent = steamworks.lobby.send_chat_message(lobby_id, message)
             print(f"Sent lobby chat: {yes_no(sent)}")
         elif action == "history":
             if not self.state.chat_history:
@@ -760,7 +760,7 @@ class Demo:
                 print(line)
         elif action == "clear":
             self.state.chat_history.clear()
-            steamworks.Steam_Lobby_ClearChatMessages()
+            steamworks.lobby.clear_chat_messages()
             print("Cleared lobby chat history.")
         else:
             print(f"Unknown lobby chat command: {action}")
@@ -774,8 +774,8 @@ class Demo:
     def resolve_lobby_member_id(self, value: str) -> int:
         numeric = int(value)
         lobby_id = self.state.current_lobby
-        if lobby_id and 0 <= numeric < steamworks.Steam_Matchmaking_GetNumLobbyMembers(lobby_id):
-            return steamworks.Steam_Matchmaking_GetLobbyMemberByIndex(lobby_id, numeric)
+        if lobby_id and 0 <= numeric < steamworks.matchmaking.num_lobby_members(lobby_id):
+            return steamworks.matchmaking.lobby_member_by_index(lobby_id, numeric)
         return numeric
 
     def print_friend_rich_presence(self, parts: list[str]) -> None:
@@ -784,16 +784,16 @@ class Demo:
             return
 
         friend_id = self.resolve_friend_id(parts[2])
-        name = steamworks.Steam_Friends_GetFriendPersonaName(friend_id) or "(unknown)"
-        steamworks.Steam_Friends_RequestFriendRichPresence(friend_id)
-        count = steamworks.Steam_Friends_GetFriendRichPresenceKeyCount(friend_id)
+        name = steamworks.friends.friend_persona_name(friend_id) or "(unknown)"
+        steamworks.friends.request_friend_rich_presence(friend_id)
+        count = steamworks.friends.friend_rich_presence_key_count(friend_id)
         print(f"Rich presence for {name} ({friend_id}):")
         if count <= 0:
             print("  (none)")
             return
         for index in range(count):
-            key = steamworks.Steam_Friends_GetFriendRichPresenceKeyByIndex(friend_id, index)
-            print(f"  {key}={steamworks.Steam_Friends_GetFriendRichPresence(friend_id, key)}")
+            key = steamworks.friends.friend_rich_presence_key_by_index(friend_id, index)
+            print(f"  {key}={steamworks.friends.friend_rich_presence(friend_id, key)}")
 
     def print_friend_game_state(self, parts: list[str]) -> None:
         if len(parts) < 3:
@@ -801,23 +801,23 @@ class Demo:
             return
 
         friend_id = self.resolve_friend_id(parts[2])
-        name = steamworks.Steam_Friends_GetFriendPersonaName(friend_id) or "(unknown)"
+        name = steamworks.friends.friend_persona_name(friend_id) or "(unknown)"
         print(f"Game state for {name} ({friend_id}):")
-        if not steamworks.Steam_Friends_GetFriendGamePlayedInfo(friend_id):
+        if not steamworks.friends.friend_game_played_info(friend_id):
             print("  not currently reporting game details")
             return
 
-        app_id = steamworks.Steam_Friends_GetFriendGameAppID(friend_id)
-        game_id = steamworks.Steam_Friends_GetFriendGameID(friend_id)
-        lobby_id = steamworks.Steam_Friends_GetFriendGameLobbyID(friend_id)
-        game_ip = steamworks.Steam_Friends_GetFriendGameIP(friend_id)
-        game_port = steamworks.Steam_Friends_GetFriendGamePort(friend_id)
-        query_port = steamworks.Steam_Friends_GetFriendGameQueryPort(friend_id)
-        connect = steamworks.Steam_Friends_GetFriendRichPresence(friend_id, "connect")
+        app_id = steamworks.friends.friend_game_app_id(friend_id)
+        game_id = steamworks.friends.friend_game_id(friend_id)
+        lobby_id = steamworks.friends.friend_game_lobby_id(friend_id)
+        game_ip = steamworks.friends.friend_game_ip(friend_id)
+        game_port = steamworks.friends.friend_game_port(friend_id)
+        query_port = steamworks.friends.friend_game_query_port(friend_id)
+        connect = steamworks.friends.friend_rich_presence(friend_id, "connect")
 
         print(f"  app_id={app_id}")
         print(f"  game_id={game_id}")
-        print(f"  in_current_game={yes_no(steamworks.Steam_Friends_IsFriendInCurrentGame(friend_id))}")
+        print(f"  in_current_game={yes_no(steamworks.friends.is_friend_in_current_game(friend_id))}")
         if lobby_id:
             print(f"  lobby_id={lobby_id}")
         if game_ip:
@@ -846,7 +846,7 @@ class Demo:
         keys = ["name", "demo", "state", "host_steam_id", "virtual_port"]
         print(f"Lobby {lobby_id}:")
         for key in keys:
-            print(f"  {key}={steamworks.Steam_Matchmaking_GetLobbyData(lobby_id, key)}")
+            print(f"  {key}={steamworks.matchmaking.lobby_data(lobby_id, key)}")
 
     def handle_lobby_data_command(self, parts: list[str]) -> None:
         lobby_id = self.state.current_lobby
@@ -859,7 +859,7 @@ class Demo:
 
         action = parts[2].lower()
         if action == "list":
-            entries = steamworks.Steam_Lobby_GetDataEntries(lobby_id)
+            entries = steamworks.lobby.data_entries(lobby_id)
             if not entries:
                 print("No lobby metadata.")
                 return
@@ -870,19 +870,19 @@ class Demo:
             if len(parts) < 4:
                 print("Usage: lobby data get <key>")
                 return
-            print(f"{parts[3]}={steamworks.Steam_Matchmaking_GetLobbyData(lobby_id, parts[3])}")
+            print(f"{parts[3]}={steamworks.matchmaking.lobby_data(lobby_id, parts[3])}")
         elif action == "set":
             if len(parts) < 5:
                 print("Usage: lobby data set <key> <value>")
                 return
             value = " ".join(parts[4:])
-            updated = steamworks.Steam_Matchmaking_SetLobbyData(lobby_id, parts[3], value)
+            updated = steamworks.matchmaking.set_lobby_data(lobby_id, parts[3], value)
             print(f"Set {parts[3]}={value}: {yes_no(updated)}")
         elif action in {"delete", "del", "clear"}:
             if len(parts) < 4:
                 print("Usage: lobby data delete <key>")
                 return
-            deleted = steamworks.Steam_Matchmaking_DeleteLobbyData(lobby_id, parts[3])
+            deleted = steamworks.matchmaking.delete_lobby_data(lobby_id, parts[3])
             print(f"Deleted {parts[3]}: {yes_no(deleted)}")
         else:
             print(f"Unknown lobby data command: {action}")
@@ -895,7 +895,7 @@ class Demo:
         if len(parts) < 3:
             print("Usage: lobby type <public|friends|private|invisible>")
             return
-        updated = steamworks.Steam_Matchmaking_SetLobbyType(lobby_id, lobby_type_value(parts[2]))
+        updated = steamworks.matchmaking.set_lobby_type(lobby_id, lobby_type_value(parts[2]))
         print(f"Set lobby type to {parts[2]}: {yes_no(updated)}")
 
     def set_lobby_joinable(self, parts: list[str]) -> None:
@@ -907,7 +907,7 @@ class Demo:
             print("Usage: lobby joinable <true|false>")
             return
         joinable = parse_bool(parts[2])
-        updated = steamworks.Steam_Matchmaking_SetLobbyJoinable(lobby_id, joinable)
+        updated = steamworks.matchmaking.set_lobby_joinable(lobby_id, joinable)
         print(f"Set lobby joinable={yes_no(joinable)}: {yes_no(updated)}")
 
     def handle_lobby_owner_command(self, parts: list[str]) -> None:
@@ -916,23 +916,23 @@ class Demo:
             print("Not in a lobby.")
             return
 
-        owner = steamworks.Steam_Matchmaking_GetLobbyOwner(lobby_id)
+        owner = steamworks.matchmaking.lobby_owner(lobby_id)
         if len(parts) == 2:
-            name = steamworks.Steam_Friends_GetFriendPersonaName(owner) or "(unknown)"
+            name = steamworks.friends.friend_persona_name(owner) or "(unknown)"
             print(f"Lobby owner: {owner} {name}")
             return
         if len(parts) >= 4 and parts[2].lower() == "set":
             new_owner = self.resolve_lobby_member_id(parts[3])
-            updated = steamworks.Steam_Matchmaking_SetLobbyOwner(lobby_id, new_owner)
+            updated = steamworks.matchmaking.set_lobby_owner(lobby_id, new_owner)
             print(f"Set lobby owner to {new_owner}: {yes_no(updated)}")
             return
         print("Usage: lobby owner [set <member-index|steamid>]")
 
     def close_connections(self) -> None:
         for connection in list(self.state.connections):
-            steamworks.Steam_NetworkingSockets_CloseConnection(
+            steamworks.networking_sockets.close_connection(
                 connection,
-                steamworks.Steam_NetConnectionEnd_AppGeneric(),
+                steamworks.networking_constants.net_connection_end_app_generic(),
                 "closed by demo",
                 False,
             )
@@ -944,7 +944,7 @@ class Demo:
 
     def status(self) -> None:
         print(f"SteamID: {self.state.steam_id}")
-        print(f"AppID: {steamworks.Steam_Utils_GetAppID()}")
+        print(f"AppID: {steamworks.utils.app_id()}")
         print(f"Lobby: {self.state.current_lobby or '(none)'}")
         print(f"Hosting: {yes_no(bool(self.state.listen_socket))}")
         print(f"Virtual port: {self.state.virtual_port}")
@@ -954,7 +954,7 @@ class Demo:
 
     def leave_lobby(self) -> None:
         if self.state.current_lobby:
-            steamworks.Steam_Matchmaking_LeaveLobby(self.state.current_lobby)
+            steamworks.matchmaking.leave_lobby(self.state.current_lobby)
             print(f"Left lobby {self.state.current_lobby}")
             self.state.current_lobby = 0
         else:
@@ -1086,7 +1086,7 @@ class Demo:
 
         try:
             while self.state.running:
-                steamworks.Steam_RunCallbacks()
+                steamworks.run_callbacks()
                 self.finish_create_if_ready()
                 self.finish_list_if_ready()
                 self.finish_join_if_ready()
@@ -1106,20 +1106,20 @@ class Demo:
         finally:
             stop.set()
             if self.state.current_lobby:
-                steamworks.Steam_Matchmaking_LeaveLobby(self.state.current_lobby)
+                steamworks.matchmaking.leave_lobby(self.state.current_lobby)
             self.close_connections()
 
 
 def init_steam() -> bool:
     missing = [
         name
-        for name in [
-            "Steam_Lobby_Create",
-            "Steam_Lobby_IsCreateComplete",
-            "Steam_Lobby_SendChatMessage",
-            "Steam_Lobby_PollChatMessages",
+        for name, owner in [
+            ("create", steamworks.lobby),
+            ("is_create_complete", steamworks.lobby),
+            ("send_chat_message", steamworks.lobby),
+            ("poll_chat_messages", steamworks.lobby),
         ]
-        if not hasattr(steamworks, name)
+        if not hasattr(owner, name)
     ]
     if missing:
         print(
@@ -1129,23 +1129,23 @@ def init_steam() -> bool:
         )
         return False
 
-    if not steamworks.Steam_IsSteamRunning():
+    if not steamworks.is_steam_running():
         print("Steam is not running.", file=sys.stderr)
         return False
 
-    result = steamworks.Steam_InitEx()
+    result = steamworks.init_ex()
     if result != 0:
         print(
-            f"Steam_InitEx failed ({result}): {steamworks.Steam_GetLastInitError()}",
+            f"steamworks.init_ex() failed ({result}): {steamworks.last_init_error()}",
             file=sys.stderr,
         )
         return False
 
-    steamworks.Steam_NetworkingUtils_InitRelayNetworkAccess()
-    steamworks.Steam_NetworkingSockets_EnableConnectionStatusCallbacks()
-    steamworks.Steam_NetworkingSockets_ClearConnectionStatusChangedEvents()
-    steamworks.Steam_Lobby_EnableChatCallbacks()
-    steamworks.Steam_Lobby_ClearChatMessages()
+    steamworks.networking_utils.init_relay_network_access()
+    steamworks.networking_sockets.enable_connection_status_callbacks()
+    steamworks.networking_sockets.clear_connection_status_changed_events()
+    steamworks.lobby.enable_chat_callbacks()
+    steamworks.lobby.clear_chat_messages()
     return True
 
 
@@ -1160,7 +1160,7 @@ def main() -> int:
     try:
         Demo(args).run()
     finally:
-        steamworks.Steam_Shutdown()
+        steamworks.shutdown()
     return 0
 
 

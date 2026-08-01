@@ -18,12 +18,15 @@ SDK_DIR = Path(os.environ.get("STEAMWORKS_SDK_DIR", ROOT / "sdk")).expanduser().
 STEAM_INCLUDE = SDK_DIR / "public"
 GENERATED_DIR = ROOT / "generated"
 GENERATOR = ROOT / "tools" / "generate_swig_shim.py"
+PYTHON_GENERATOR = ROOT / "tools" / "generate_python.py"
 API_JSON = STEAM_INCLUDE / "steam" / "steam_api.json"
 SWIG_INTERFACE = GENERATED_DIR / "steamworks.i"
 SWIG_PROXY = GENERATED_DIR / "steamworks.py"
 SWIG_WRAPPER = GENERATED_DIR / "steamworks_wrap.cpp"
 SHIM_SOURCE = GENERATED_DIR / "steamworks_swig_shim.cpp"
 C_API_SOURCE = GENERATED_DIR / "steamworks_c_api.cpp"
+C_API_MODEL = GENERATED_DIR / "steamworks_c_api_model.json"
+PYTHON_GROUPED = ROOT / "python" / "steamworks" / "grouped.py"
 
 
 def setup_relative(path: Path) -> str:
@@ -125,6 +128,17 @@ def generate_sources() -> None:
             str(STEAM_INCLUDE),
             "--output-dir",
             str(GENERATED_DIR),
+        ],
+        cwd=ROOT,
+    )
+    subprocess.check_call(
+        [
+            sys.executable,
+            str(PYTHON_GENERATOR),
+            "--model",
+            str(C_API_MODEL),
+            "--output",
+            str(PYTHON_GROUPED),
         ],
         cwd=ROOT,
     )
