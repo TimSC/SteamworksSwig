@@ -10,6 +10,13 @@
 /generated/
 /go/steamworks/generated.go
 /go/steamworks/raw/
+/lua/steamworks.lua
+/lua/steamworks_c_api.cpp
+/lua/steamworks_c_api.h
+/lua/steamworks_helpers.cpp
+/lua/steamworks_helpers.h
+/lua/steamworks_lua.i
+/lua/steamworks_lua_wrap.cpp
 /*.egg-info/
 /**/__pycache__/
 *.py[cod]

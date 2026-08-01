@@ -11,8 +11,8 @@ sdk/public/steam/steam_api.json
 sdk/public/steam/steam_api_flat.h
 ```
 
-The project includes an experimental Go wrapper. See [GO.md](GO.md) for Go
-binding generation, package layout, and smoke-test instructions.
+The project includes experimental Go and Lua wrappers. See [GO.md](GO.md) for
+Go binding generation and [LUA.md](LUA.md) for Lua SWIG build instructions.
 
 ## Requirements
 
