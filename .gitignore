@@ -4,6 +4,9 @@
 /steamworks_sdk_*.zip
 
 # Generated and local build artifacts.
+/venv/
+/.venv/
+/steam_appid.txt
 /build/
 /dist/
 /wheelhouse/

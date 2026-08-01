@@ -7,13 +7,13 @@ Regenerate it after changing the SDK, C ABI generator, or curated helper list.
 
 - SDK interface methods supported by the generated C ABI: 600 of 921 (65.1%)
 - SDK interface methods currently skipped: 321
-- Total C ABI functions, including manual helpers: 925
+- Total C ABI functions, including manual helpers: 933
 
 ## C ABI Function Sources
 
 | Source | Functions |
 | --- | ---: |
-| Curated C-safe helpers | 182 |
+| Curated C-safe helpers | 190 |
 | Manual lifecycle/global helpers | 44 |
 | Manual-dispatch callback helpers | 99 |
 | SDK methods | 600 |
@@ -24,14 +24,14 @@ Regenerate it after changing the SDK, C ABI generator, or curated helper list.
 | --- | ---: |
 | `bytes_or_bytes_list` | 15 |
 | `scalar` | 803 |
-| `scalar_string` | 96 |
+| `scalar_string` | 104 |
 | `string_list` | 11 |
 
 ## Interface Coverage
 
 | Steamworks group | SDK methods | C ABI methods | Coverage | Curated/helper funcs |
 | --- | ---: | ---: | ---: | ---: |
-| `Apps` | 35 | 26 | 74.3% | 9 |
+| `Apps` | 35 | 26 | 74.3% | 10 |
 | `Client` | 33 | 0 | 0.0% | 0 |
 | `Controller` | 34 | 26 | 76.5% | 1 |
 | `Friends` | 78 | 72 | 92.3% | 11 |
@@ -49,7 +49,7 @@ Regenerate it after changing the SDK, C ABI generator, or curated helper list.
 | `MatchmakingServerListResponse` | 3 | 0 | 0.0% | 0 |
 | `MatchmakingServers` | 18 | 1 | 5.6% | 14 |
 | `Music` | 9 | 9 | 100.0% | 0 |
-| `Networking` | 22 | 9 | 40.9% | 0 |
+| `Networking` | 22 | 9 | 40.9% | 3 |
 | `NetworkingFakeUDPPort` | 4 | 0 | 0.0% | 0 |
 | `NetworkingMessages` | 6 | 0 | 0.0% | 5 |
 | `NetworkingSockets` | 47 | 15 | 31.9% | 23 |
@@ -60,10 +60,10 @@ Regenerate it after changing the SDK, C ABI generator, or curated helper list.
 | `RemoteStorage` | 59 | 43 | 72.9% | 7 |
 | `Screenshots` | 9 | 8 | 88.9% | 0 |
 | `Timeline` | 18 | 18 | 100.0% | 0 |
-| `UGC` | 99 | 74 | 74.7% | 12 |
+| `UGC` | 99 | 74 | 74.7% | 13 |
 | `User` | 33 | 24 | 72.7% | 7 |
-| `UserStats` | 44 | 24 | 54.5% | 0 |
-| `Utils` | 39 | 32 | 82.1% | 3 |
+| `UserStats` | 44 | 24 | 54.5% | 2 |
+| `Utils` | 39 | 32 | 82.1% | 4 |
 | `Video` | 4 | 2 | 50.0% | 1 |
 
 ## Skipped Reasons
