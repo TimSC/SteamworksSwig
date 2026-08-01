@@ -4,10 +4,18 @@
 from __future__ import annotations
 
 import argparse
-import json
 from pathlib import Path
 
-from steamworks_model import split_words
+from generator_io import load_json, write_generated_text
+from steamworks_model import (
+    disambiguate_names,
+    friendly_name,
+    method_params,
+    method_return_type,
+    model_methods,
+    raw_c_name,
+)
+from steamworks_types import split_words
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -132,15 +140,15 @@ def generate(model: dict) -> str:
     interfaces: dict[str, list[dict[str, str | None]]] = {}
     callback_methods = []
     candidates = []
-    for method in model["methods"]:
-        c_name = method["c_name"]
+    for method in model_methods(model):
+        c_name = raw_c_name(method)
         if c_name.startswith("SWS_Steam_ManualDispatch_CallbackID"):
             callback_name = c_name.removeprefix("SWS_Steam_ManualDispatch_CallbackID")
             callback_methods.append((go_identifier(callback_name), c_name))
             continue
 
         classname = method.get("classname")
-        raw_method_name = method.get("friendly_name") or method.get("methodname")
+        raw_method_name = friendly_name(method)
         if not classname or not raw_method_name or not classname.startswith("ISteam"):
             continue
 
@@ -148,24 +156,25 @@ def generate(model: dict) -> str:
         method_name = wrapper_method_name(raw_method_name)
         if method_name in HAND_WRITTEN_METHODS.get(receiver, set()):
             continue
-        c_method_suffix = c_name.removeprefix(f"SWS_SteamAPI_{classname}_")
+        sdk_flat_name = method.get("sdk_flat_name") or c_name
+        c_method_suffix = sdk_flat_name.removeprefix(f"SteamAPI_{classname}_")
         candidates.append((receiver, method_name, c_method_suffix, method))
 
-    method_name_counts: dict[tuple[str, str], int] = {}
-    for receiver, method_name, _, _ in candidates:
-        key = (receiver, method_name)
-        method_name_counts[key] = method_name_counts.get(key, 0) + 1
+    named_candidates = disambiguate_names(
+        candidates,
+        key=lambda candidate: candidate[0],
+        name=lambda candidate: candidate[1],
+        fallback_name=lambda candidate: wrapper_method_name(candidate[2]),
+    )
 
-    for receiver, method_name, c_method_suffix, method in candidates:
-        if method_name_counts[(receiver, method_name)] > 1:
-            method_name = wrapper_method_name(c_method_suffix)
-        return_type = method["c_return_type"]
+    for (receiver, _, _, method), method_name in named_candidates:
+        return_type = method_return_type(method)
         interfaces.setdefault(receiver, []).append(
             {
-                "raw_name": method["c_name"],
+                "raw_name": raw_c_name(method),
                 "method_name": method_name,
-                "args": go_args(method["params"]),
-                "arg_names": go_arg_names(method["params"]),
+                "args": go_args(method_params(method)),
+                "arg_names": go_arg_names(method_params(method)),
                 "return_type": None if return_type == "void" else go_type(return_type),
             }
         )
@@ -216,9 +225,7 @@ def generate(model: dict) -> str:
 
 
 def write_go_wrappers(model_path: Path, output_path: Path) -> None:
-    model = json.loads(model_path.read_text(encoding="utf-8"))
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(generate(model), encoding="utf-8")
+    write_generated_text(output_path, generate(load_json(model_path)))
 
 
 def main() -> int:
@@ -227,9 +234,7 @@ def main() -> int:
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT), help="Go wrapper output path")
     args = parser.parse_args()
 
-    output_path = Path(args.output)
-    write_go_wrappers(Path(args.model), output_path)
-    print(f"Wrote {output_path}")
+    write_go_wrappers(Path(args.model), Path(args.output))
     return 0
 
 

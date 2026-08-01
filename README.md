@@ -359,7 +359,8 @@ SteamNetworkingMessages session request/failure events. Lobby API-call results
 currently decode `LobbyMatchList_t`, `LobbyEnter_t`, and `LobbyCreated_t`.
 
 ManualDispatch callback decoders are generated from curated metadata in
-`tools/generate_swig_shim.py`. Add simple callback structs there rather than
+`tools/steamworks_callbacks.py` and renderer helpers in
+`tools/generate_callbacks.py`. Add simple callback structs there rather than
 hand-editing the C++ templates; keep only special nested serializers in the
 template.
 
@@ -520,7 +521,7 @@ python3 examples/python/friends_servers.py
 The generator can be run directly:
 
 ```bash
-python3 tools/generate_swig_shim.py --output-dir generated
+python3 tools/generate_core.py --output-dir generated
 ```
 
 The generated wrapper currently covers methods with SWIG-friendly value and

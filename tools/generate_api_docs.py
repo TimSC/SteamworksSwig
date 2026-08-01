@@ -4,9 +4,11 @@
 from __future__ import annotations
 
 import argparse
-import json
 from collections import Counter, defaultdict
 from pathlib import Path
+
+from generator_io import load_json, write_generated_text
+from steamworks_model import model_methods
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,7 +33,7 @@ def source_label(source: str | None) -> str:
 
 def generate(model: dict) -> str:
     summary = model.get("summary", {})
-    methods = model.get("methods", [])
+    methods = model_methods(model)
     skipped = model.get("skipped_methods", [])
 
     sdk_by_interface: Counter[str] = Counter()
@@ -154,12 +156,7 @@ def main() -> int:
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT), help="Markdown output path")
     args = parser.parse_args()
 
-    model_path = Path(args.model)
-    output_path = Path(args.output)
-    model = json.loads(model_path.read_text(encoding="utf-8"))
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(generate(model), encoding="utf-8")
-    print(f"Wrote {output_path}")
+    write_generated_text(Path(args.output), generate(load_json(Path(args.model))))
     return 0
 
 

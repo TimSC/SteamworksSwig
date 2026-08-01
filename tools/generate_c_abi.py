@@ -4,30 +4,24 @@
 from __future__ import annotations
 
 import argparse
-import json
 from pathlib import Path
+
+from generator_io import load_json, render_template, write_text
+from steamworks_model import method_params, method_return_type, raw_c_name, shim_name, shim_return_type
 
 
 ROOT = Path(__file__).resolve().parents[1]
-TEMPLATE_DIR = ROOT / "tools" / "templates"
 DEFAULT_MODEL = ROOT / "generated" / "steamworks_c_api_model.json"
 DEFAULT_OUTPUT_DIR = ROOT / "generated"
 
 
-def render_template(template_name: str, **values: str) -> str:
-    rendered = (TEMPLATE_DIR / template_name).read_text(encoding="utf-8")
-    for key, value in values.items():
-        rendered = rendered.replace(f"{{{{ {key} }}}}", value)
-    return rendered
-
-
 def c_signature(method: dict) -> str:
     params = ", ".join(
-        f'{param["c_type"]} {param["name"]}' for param in method["params"]
+        f'{param["c_type"]} {param["name"]}' for param in method_params(method)
     )
     if not params:
         params = "void"
-    return f'{method["c_return_type"]} {method["c_name"]}( {params} )'
+    return f'{method_return_type(method)} {raw_c_name(method)}( {params} )'
 
 
 def c_declaration(method: dict) -> str:
@@ -71,19 +65,19 @@ def c_default_return(c_type: str) -> str:
 def c_definition(method: dict) -> str:
     args = ", ".join(
         c_argument(param["cpp_type"], param["name"], param["c_type"])
-        for param in method["params"]
+        for param in method_params(method)
     )
-    expression = f'{method["cpp_name"]}( {args} )' if args else f'{method["cpp_name"]}()'
+    expression = f'{shim_name(method)}( {args} )' if args else f'{shim_name(method)}()'
     lines = [
         c_signature(method),
         "{",
         "\ttry",
         "\t{",
-        c_return(expression, method["c_return_type"], method["cpp_return_type"]),
+        c_return(expression, method_return_type(method), shim_return_type(method)),
         "\t}",
         "\tcatch ( const std::exception & )",
         "\t{",
-        c_default_return(method["c_return_type"]),
+        c_default_return(method_return_type(method)),
         "\t}",
         "}",
     ]
@@ -112,8 +106,8 @@ def render_c_source(model: dict) -> str:
 
 def write_c_abi_files(model: dict, output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "steamworks_c_api.h").write_text(render_c_header(model), encoding="utf-8")
-    (output_dir / "steamworks_c_api.cpp").write_text(render_c_source(model), encoding="utf-8")
+    write_text(output_dir / "steamworks_c_api.h", render_c_header(model))
+    write_text(output_dir / "steamworks_c_api.cpp", render_c_source(model))
 
 
 def main() -> int:
@@ -122,7 +116,7 @@ def main() -> int:
     parser.add_argument("--output-dir", default=str(DEFAULT_OUTPUT_DIR), help="Directory for C ABI files")
     args = parser.parse_args()
 
-    model = json.loads(Path(args.model).read_text(encoding="utf-8"))
+    model = load_json(Path(args.model))
     write_c_abi_files(model, Path(args.output_dir))
     print(f"Wrote C ABI files in {Path(args.output_dir)}")
     return 0

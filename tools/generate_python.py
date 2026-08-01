@@ -4,11 +4,19 @@
 from __future__ import annotations
 
 import argparse
-import json
 from collections import Counter
 from pathlib import Path
 
-from steamworks_model import python_snake_name, split_words
+from generator_io import load_json, write_generated_text
+from steamworks_model import (
+    disambiguate_names,
+    friendly_name,
+    method_params,
+    model_methods,
+    raw_c_name,
+    shim_name,
+)
+from steamworks_types import python_snake_name, split_words
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MODEL = ROOT / "generated" / "steamworks_c_api_model.json"
@@ -32,8 +40,8 @@ def param_name(value: str) -> str:
     return result
 
 
-def helper_method_name(interface: str, cpp_name: str, c_name: str, *, drop_get: bool = True) -> str:
-    name = cpp_name or c_name.removeprefix("SWS_")
+def helper_method_name(interface: str, shim_name: str, raw_c_name: str, *, drop_get: bool = True) -> str:
+    name = shim_name or raw_c_name.removeprefix("SWS_")
     if name.startswith("Steam_"):
         name = name[len("Steam_"):]
     if interface and interface != "Global/static":
@@ -45,42 +53,53 @@ def helper_method_name(interface: str, cpp_name: str, c_name: str, *, drop_get: 
 
 def method_candidates(model: dict) -> list[tuple[str, str, str, dict]]:
     candidates = []
-    for method in model.get("methods", []):
+    for method in model_methods(model):
         interface = method.get("interface")
-        c_name = method.get("c_name")
-        cpp_name = method.get("cpp_name")
+        c_name = raw_c_name(method)
         if not interface or not c_name:
             continue
         if method.get("source") == "sdk":
-            method_name = method.get("friendly_name") or method.get("methodname")
+            method_name = friendly_name(method)
             if not method_name:
                 continue
             grouped_name = python_snake_name(method_name)
         else:
-            grouped_name = helper_method_name(interface, cpp_name or "", c_name)
+            grouped_name = helper_method_name(interface, shim_name(method), c_name)
         candidates.append((interface, grouped_name, c_name, method))
     return candidates
 
 
+def python_collision_name(candidate: tuple[str, str, str, dict]) -> str:
+    interface, _, raw_c_name, method = candidate
+    if method.get("source") == "sdk":
+        sdk_flat_name = method.get("sdk_flat_name") or raw_c_name
+        prefix = f"SteamAPI_ISteam{interface}_"
+        return python_snake_name(sdk_flat_name.removeprefix(prefix), drop_get=False)
+    return helper_method_name(
+        interface,
+        shim_name(method),
+        raw_c_name,
+        drop_get=False,
+    )
+
+
 def generate(model: dict) -> str:
     candidates = method_candidates(model)
-    counts = Counter((interface, name) for interface, name, _, _ in candidates)
     interfaces: dict[str, list[dict]] = {}
     module_functions: list[dict] = []
 
-    for interface, grouped_name, c_name, method in candidates:
-        if counts[(interface, grouped_name)] > 1:
-            if method.get("source") == "sdk":
-                flat_name = method.get("flat_name") or c_name
-                prefix = f"SteamAPI_ISteam{interface}_"
-                grouped_name = python_snake_name(flat_name.removeprefix(prefix), drop_get=False)
-            else:
-                grouped_name = helper_method_name(interface, method.get("cpp_name") or "", c_name, drop_get=False)
+    named_candidates = disambiguate_names(
+        candidates,
+        key=lambda candidate: candidate[0],
+        name=lambda candidate: candidate[1],
+        fallback_name=lambda candidate: python_collision_name(candidate),
+    )
 
+    for (interface, _, raw_c_name, method), grouped_name in named_candidates:
         params = []
         arg_names = []
         seen_params: Counter[str] = Counter()
-        for param in method.get("params", []):
+        for param in method_params(method):
             name = param_name(param.get("name", "arg"))
             seen_params[name] += 1
             if seen_params[name] > 1:
@@ -91,7 +110,7 @@ def generate(model: dict) -> str:
         interfaces.setdefault(interface, []).append(
             {
                 "name": grouped_name,
-                "c_name": c_name,
+                "raw_c_name": raw_c_name,
                 "params": params,
                 "arg_names": arg_names,
             }
@@ -118,7 +137,7 @@ def generate(model: dict) -> str:
         for item in sorted(interfaces[interface], key=lambda value: value["name"]):
             params = ", ".join(["self"] + item["params"])
             args = ", ".join(item["arg_names"])
-            call = f'_raw.{item["c_name"]}({args})' if args else f'_raw.{item["c_name"]}()'
+            call = f'_raw.{item["raw_c_name"]}({args})' if args else f'_raw.{item["raw_c_name"]}()'
             lines.append(f"    def {item['name']}({params}):")
             lines.append(f"        return {call}")
             lines.append("")
@@ -128,7 +147,7 @@ def generate(model: dict) -> str:
         exported.append(item["name"])
         params = ", ".join(item["params"])
         args = ", ".join(item["arg_names"])
-        call = f'_raw.{item["c_name"]}({args})' if args else f'_raw.{item["c_name"]}()'
+        call = f'_raw.{item["raw_c_name"]}({args})' if args else f'_raw.{item["raw_c_name"]}()'
         lines.append(f"def {item['name']}({params}):")
         lines.append(f"    return {call}")
         lines.append("")
@@ -144,12 +163,7 @@ def main() -> int:
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT), help="Python output path")
     args = parser.parse_args()
 
-    model_path = Path(args.model)
-    output_path = Path(args.output)
-    model = json.loads(model_path.read_text(encoding="utf-8"))
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(generate(model), encoding="utf-8")
-    print(f"Wrote {output_path}")
+    write_generated_text(Path(args.output), generate(load_json(Path(args.model))))
     return 0
 
 

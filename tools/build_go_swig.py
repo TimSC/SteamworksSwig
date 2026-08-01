@@ -133,7 +133,7 @@ def main() -> int:
     run(
         [
             sys.executable,
-            str(ROOT / "tools" / "generate_swig_shim.py"),
+            str(ROOT / "tools" / "generate_core.py"),
             "--api-json",
             str(api_json),
             "--steam-include",

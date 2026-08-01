@@ -1,382 +1,18 @@
-"""Shared Steamworks SDK model and C ABI type helpers."""
+"""Shared Steamworks C ABI model assembly helpers."""
 
 from __future__ import annotations
 
-import keyword
-import re
+from collections import Counter
 
-
-SUPPORTED_POINTER_TYPES = {"const char *"}
-
-INITIALISMS = {
-    "API",
-    "DLC",
-    "HTML",
-    "HTTP",
-    "ID",
-    "IP",
-    "UGC",
-    "URL",
-    "VR",
-}
-
-FLAT_TYPEDEFS = {
-    "uint64_steamid": "unsigned long long",
-    "uint64_gameid": "unsigned long long",
-}
-
-C_TYPE_MAP = {
-    "void": "void",
-    "bool": "bool",
-    "char": "char",
-    "const char *": "const char *",
-    "float": "float",
-    "double": "double",
-    "int": "int32_t",
-    "unsigned int": "uint32_t",
-    "short": "int16_t",
-    "unsigned short": "uint16_t",
-    "signed char": "int8_t",
-    "unsigned char": "uint8_t",
-    "long long": "int64_t",
-    "unsigned long long": "uint64_t",
-    "int8": "int8_t",
-    "uint8": "uint8_t",
-    "int16": "int16_t",
-    "uint16": "uint16_t",
-    "int32": "int32_t",
-    "uint32": "uint32_t",
-    "int64": "int64_t",
-    "uint64": "uint64_t",
-    "lint64": "int64_t",
-    "ulint64": "uint64_t",
-    "uint64_steamid": "uint64_t",
-    "uint64_gameid": "uint64_t",
-    "size_t": "size_t",
-    "std::string": "SWS_String",
-    "std::vector<std::string>": "SWS_StringList",
-    "SteamworksBytes": "SWS_Bytes",
-    "SteamworksBytesVector": "SWS_BytesList",
-}
-
-CPP_KEYWORDS = {
-    "alignas",
-    "alignof",
-    "and",
-    "and_eq",
-    "asm",
-    "auto",
-    "bitand",
-    "bitor",
-    "bool",
-    "break",
-    "case",
-    "catch",
-    "char",
-    "class",
-    "compl",
-    "const",
-    "constexpr",
-    "continue",
-    "decltype",
-    "default",
-    "delete",
-    "do",
-    "double",
-    "dynamic_cast",
-    "else",
-    "enum",
-    "explicit",
-    "export",
-    "extern",
-    "false",
-    "float",
-    "for",
-    "friend",
-    "goto",
-    "if",
-    "inline",
-    "int",
-    "long",
-    "mutable",
-    "namespace",
-    "new",
-    "noexcept",
-    "not",
-    "not_eq",
-    "nullptr",
-    "operator",
-    "or",
-    "or_eq",
-    "private",
-    "protected",
-    "public",
-    "register",
-    "reinterpret_cast",
-    "return",
-    "short",
-    "signed",
-    "sizeof",
-    "static",
-    "static_assert",
-    "static_cast",
-    "struct",
-    "switch",
-    "template",
-    "this",
-    "thread_local",
-    "throw",
-    "true",
-    "try",
-    "typedef",
-    "typeid",
-    "typename",
-    "union",
-    "unsigned",
-    "using",
-    "virtual",
-    "void",
-    "volatile",
-    "wchar_t",
-    "while",
-    "xor",
-    "xor_eq",
-}
-
-
-def normalize_type(type_name: str) -> str:
-    return " ".join(type_name.replace(" *", "*").replace("*", " *").split())
-
-
-def split_words(value: str) -> list[str]:
-    return re.findall(r"[A-Z]+(?=[A-Z][a-z]|$)|[A-Z]?[a-z]+|\d+", value)
-
-
-def python_snake_name(value: str, *, drop_get: bool = True) -> str:
-    value = value.replace("SWS_", "")
-    if value.startswith("SteamAPI_ISteam"):
-        value = value.split("_", 2)[-1]
-    if value.startswith("Steam_"):
-        value = value[len("Steam_") :]
-    if value.startswith("B") and len(value) > 1 and value[1].isupper():
-        value = value[1:]
-    if drop_get and value.startswith("Get") and len(value) > 3 and value[3].isupper():
-        value = value[3:]
-    words = split_words(value)
-    if not words:
-        result = value.lower()
-    else:
-        result = "_".join(word.lower() for word in words)
-    if keyword.iskeyword(result):
-        return result + "_"
-    return result
-
-
-def swig_safe_type(type_name: str) -> str | None:
-    type_name = normalize_type(type_name)
-    if "&" in type_name or "[" in type_name or "]" in type_name:
-        return None
-    if "*" in type_name and type_name not in SUPPORTED_POINTER_TYPES:
-        return None
-    if type_name.startswith("ISteam"):
-        return None
-    return type_name
-
-
-def unsupported_type_reason(type_name: str) -> str:
-    type_name = normalize_type(type_name)
-    if not type_name:
-        return "missing_type"
-    if "(" in type_name or ")" in type_name:
-        return "function_pointer"
-    if "[" in type_name or "]" in type_name:
-        return "array_type"
-    if "&" in type_name:
-        return "reference_type"
-    if type_name.startswith("ISteam"):
-        return "interface_pointer"
-    if "*" in type_name and type_name not in SUPPORTED_POINTER_TYPES:
-        return "pointer_output_or_unsupported_pointer"
-    return "unsupported_c_type"
-
-
-def interface_name(classname: str | None) -> str | None:
-    if not classname:
-        return None
-    if classname.startswith("ISteam"):
-        return classname[len("ISteam") :]
-    return classname
-
-
-def infer_interface_from_wrapper(name: str) -> str:
-    if name.startswith("Steam_GameServerNetworkingSockets_"):
-        return "GameServerNetworkingSockets"
-    if name.startswith("Steam_GameServerNetworkingMessages_"):
-        return "GameServerNetworkingMessages"
-    if name.startswith("Steam_GameServerHTTP_"):
-        return "GameServerHTTP"
-    if name.startswith("Steam_GameServer_"):
-        return "GameServer"
-    if name.startswith("Steam_ManualDispatch_"):
-        return "ManualDispatch"
-    if name.startswith("Steam_Lobby_"):
-        return "Lobby"
-    if name.startswith("Steam_LobbyType") or name.startswith("Steam_LobbyComparison"):
-        return "LobbyConstants"
-    if name.startswith("Steam_FriendFlag") or name.startswith("Steam_PersonaState"):
-        return "FriendsConstants"
-    if name.startswith("Steam_NetworkingSend_") or name.startswith("Steam_NetConnectionEnd_"):
-        return "NetworkingConstants"
-    if name.startswith("Steam_NetworkingConnectionState_"):
-        return "NetworkingConstants"
-    if name.startswith("Steam_"):
-        remainder = name[len("Steam_") :]
-        if remainder in {
-            "Init",
-            "InitEx",
-            "InitFlat",
-            "Shutdown",
-            "ClearHelperState",
-            "RunCallbacks",
-            "IsSteamRunning",
-            "RestartAppIfNecessary",
-            "ReleaseCurrentThreadMemory",
-            "GetSteamInstallPath",
-            "SetTryCatchCallbacks",
-            "SetMiniDumpComment",
-            "GetHSteamPipe",
-            "GetHSteamUser",
-            "GetCallbackDispatchMode",
-            "GetLastInitResult",
-            "GetLastInitError",
-        }:
-            return "Global/static"
-        if remainder.startswith("CallbackDispatchMode") or remainder.startswith("ServerMode"):
-            return "Global/static"
-        return remainder.split("_", 1)[0]
-    return "Global/static"
-
-
-def api_typedef_map(api: dict) -> dict[str, str]:
-    typedefs = dict(C_TYPE_MAP)
-    for item in api.get("typedefs", []):
-        alias = item.get("typedef")
-        target = item.get("type")
-        if not alias or not target:
-            continue
-        typedefs[alias] = normalize_type(target)
-    for alias, target in FLAT_TYPEDEFS.items():
-        typedefs[alias] = normalize_type(target)
-    return typedefs
-
-
-def api_enum_names(api: dict) -> set[str]:
-    return {
-        item["enumname"]
-        for item in api.get("enums", [])
-        if item.get("enumname")
-    }
-
-
-def resolve_c_type(type_name: str, typedefs: dict[str, str], enums: set[str]) -> str | None:
-    type_name = normalize_type(type_name)
-    if type_name.startswith("const ") and "*" not in type_name:
-        type_name = type_name[len("const ") :]
-    if type_name in enums:
-        return "int32_t"
-    if type_name in C_TYPE_MAP:
-        return C_TYPE_MAP[type_name]
-
-    seen = set()
-    current = type_name
-    while current in typedefs and current not in seen:
-        seen.add(current)
-        current = normalize_type(typedefs[current])
-        if current in enums:
-            return "int32_t"
-        if current in C_TYPE_MAP:
-            return C_TYPE_MAP[current]
-        if "*" in current or "&" in current or "[" in current or "]" in current or "(" in current:
-            return None
-
-    return None
-
-
-def safe_name(name: str, fallback: str) -> str:
-    name = name or fallback
-    if name in CPP_KEYWORDS:
-        return f"{name}_"
-    return name
-
-
-def flat_type(entry: dict, key: str) -> str | None:
-    value = entry.get(f"{key}_flat", entry.get(key))
-    if not value:
-        return None
-    return swig_safe_type(value)
-
-
-def wrapper_name(classname: str, methodname: str) -> str:
-    if classname.startswith("ISteam"):
-        classname = classname[len("ISteam") :]
-    return f"Steam_{classname}_{methodname}"
-
-
-def declared_identifiers(header_text: str) -> set[str]:
-    return set(re.findall(r"\b(?:SteamAPI|SteamGameServer)_[A-Za-z0-9_]+\b", header_text))
-
-
-def interface_accessor(interface: dict, flat_identifiers: set[str]) -> str | None:
-    for accessor in interface.get("accessors") or []:
-        versioned = accessor.get("name_flat")
-        if versioned and versioned in flat_identifiers:
-            return versioned
-
-        unversioned_name = accessor.get("name")
-        if unversioned_name:
-            unversioned = f"SteamAPI_{unversioned_name}"
-            if unversioned in flat_identifiers:
-                return unversioned
-    return None
-
-
-def iter_wrappable_methods(api: dict, flat_identifiers: set[str]):
-    for interface in api.get("interfaces", []):
-        accessor = interface_accessor(interface, flat_identifiers)
-        classname = interface.get("classname")
-        if not accessor or not classname:
-            continue
-
-        for method in interface.get("methods", []):
-            methodname = method.get("methodname")
-            flat_name = method.get("methodname_flat")
-            return_type = flat_type(method, "returntype")
-            if (
-                not methodname
-                or not flat_name
-                or flat_name not in flat_identifiers
-                or return_type is None
-            ):
-                continue
-
-            params = []
-            for index, param in enumerate(method.get("params", [])):
-                param_type = flat_type(param, "paramtype")
-                if param_type is None:
-                    break
-                param_name = safe_name(param.get("paramname", ""), f"arg{index}")
-                params.append((param_type, param_name))
-            else:
-                yield {
-                    "classname": classname,
-                    "accessor": accessor,
-                    "methodname": methodname,
-                    "flat_name": flat_name,
-                    "return_type": return_type,
-                    "params": params,
-                    "wrapper_name": wrapper_name(classname, methodname),
-                }
-
+from steamworks_discovery import infer_interface_from_wrapper, interface_accessor, interface_name
+from steamworks_types import (
+    api_enum_names,
+    api_typedef_map,
+    normalize_type,
+    resolve_c_type,
+    swig_safe_type,
+    unsupported_type_reason,
+)
 
 def sdk_method_key(classname: str | None, flat_name: str | None, methodname: str | None) -> tuple[str | None, str | None, str | None]:
     return classname, flat_name, methodname
@@ -386,12 +22,11 @@ def classify_skipped_methods(
     api: dict,
     flat_identifiers: set[str],
     c_methods: list[dict],
-    interface_accessor,
 ) -> list[dict]:
     typedefs = api_typedef_map(api)
     enums = api_enum_names(api)
     supported = {
-        sdk_method_key(method.get("classname"), method.get("flat_name"), method.get("methodname"))
+        sdk_method_key(method.get("classname"), method.get("sdk_flat_name"), method.get("sdk_method_name"))
         for method in c_methods
         if method.get("source") == "sdk"
     }
@@ -502,13 +137,14 @@ def c_method(
         )
 
     return {
-        "cpp_name": method["wrapper_name"],
-        "c_name": c_wrapper_name(method),
-        "cpp_return_type": return_type,
-        "c_return_type": c_return_type,
+        "shim_name": method["wrapper_name"],
+        "raw_c_name": c_wrapper_name(method),
+        "shim_return_type": return_type,
+        "return_type": c_return_type,
         "classname": method.get("classname"),
-        "methodname": method.get("methodname"),
-        "flat_name": method.get("flat_name"),
+        "friendly_name": method.get("methodname"),
+        "sdk_method_name": method.get("methodname"),
+        "sdk_flat_name": method.get("flat_name"),
         "interface": interface_name(method.get("classname")),
         "source": source,
         "params": params,
@@ -531,7 +167,7 @@ def c_manual_method(
     result = c_method(method, typedefs, enums, source=source)
     if result is not None:
         result["interface"] = infer_interface_from_wrapper(name)
-        result["methodname"] = name.removeprefix(f"Steam_{result['interface']}_")
+        result["friendly_name"] = name.removeprefix(f"Steam_{result['interface']}_")
     return result
 
 
@@ -565,19 +201,15 @@ def c_api_methods(
         for item in methods
         if (method := c_method(item, typedefs, enums, source="sdk")) is not None
     ]
-    return sorted(manual + helpers + manual_dispatch + generated, key=lambda item: item["c_name"])
+    return sorted(manual + helpers + manual_dispatch + generated, key=lambda item: item["raw_c_name"])
 
 
 def method_friendly_name(method: dict) -> str:
-    if method.get("source") == "sdk" and method.get("methodname"):
-        return method["methodname"]
-    if method.get("methodname"):
-        return method["methodname"]
-    return method.get("cpp_name") or method["c_name"]
+    return method.get("friendly_name") or method["shim_name"]
 
 
 def method_language_support(method: dict) -> str:
-    c_types = [method["c_return_type"]]
+    c_types = [method["return_type"]]
     c_types.extend(param["c_type"] for param in method["params"])
     special_types = {c_type for c_type in c_types if c_type.startswith("SWS_")}
     if not special_types:
@@ -595,10 +227,56 @@ def method_callback_safe(method: dict) -> bool:
     return method.get("source") != "manual_dispatch"
 
 
+def disambiguate_names(
+    candidates: list,
+    *,
+    key,
+    name,
+    fallback_name,
+) -> list[tuple[object, str]]:
+    counts = Counter((key(candidate), name(candidate)) for candidate in candidates)
+    result = []
+    for candidate in candidates:
+        candidate_key = key(candidate)
+        candidate_name = name(candidate)
+        if counts[(candidate_key, candidate_name)] > 1:
+            candidate_name = fallback_name(candidate)
+        result.append((candidate, candidate_name))
+    return result
+
+
+def model_methods(model: dict) -> list[dict]:
+    return model.get("methods", [])
+
+
+def raw_c_name(method: dict) -> str:
+    return method["raw_c_name"]
+
+
+def method_return_type(method: dict) -> str:
+    return method["return_type"]
+
+
+def shim_name(method: dict) -> str:
+    return method["shim_name"]
+
+
+def shim_return_type(method: dict) -> str:
+    return method["shim_return_type"]
+
+
+def friendly_name(method: dict) -> str | None:
+    return method.get("friendly_name")
+
+
+def method_params(method: dict) -> list[dict]:
+    return method.get("params", [])
+
+
 def c_api_model(api: dict, c_methods: list[dict], skipped_methods: list[dict]) -> dict:
     sdk_methods = [method for method in c_methods if method.get("source") == "sdk"]
     return {
-        "schema_version": 3,
+        "schema_version": 4,
         "summary": {
             "sdk_methods_total": sum(
                 len(interface.get("methods", []))
@@ -613,17 +291,15 @@ def c_api_model(api: dict, c_methods: list[dict], skipped_methods: list[dict]) -
         },
         "methods": [
             {
-                "c_name": method["c_name"],
-                "raw_c_name": method["c_name"],
+                "raw_c_name": method["raw_c_name"],
                 "friendly_name": method_friendly_name(method),
-                "c_return_type": method["c_return_type"],
-                "return_type": method["c_return_type"],
-                "cpp_name": method["cpp_name"],
-                "cpp_return_type": method["cpp_return_type"],
+                "return_type": method["return_type"],
+                "shim_name": method["shim_name"],
+                "shim_return_type": method["shim_return_type"],
                 "interface": method.get("interface"),
                 "classname": method.get("classname"),
-                "methodname": method.get("methodname"),
-                "flat_name": method.get("flat_name"),
+                "sdk_method_name": method.get("sdk_method_name"),
+                "sdk_flat_name": method.get("sdk_flat_name"),
                 "source": method.get("source", "sdk"),
                 "callback_safe": method_callback_safe(method),
                 "language_support": method_language_support(method),
