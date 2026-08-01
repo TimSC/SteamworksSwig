@@ -9,17 +9,32 @@ class _AppsAPI:
     def app_build_id(self):
         return _raw.SWS_SteamAPI_ISteamApps_GetAppBuildId()
 
+    def app_install_dir_string(self, app_id):
+        return _raw.SWS_Steam_Apps_GetAppInstallDirString(app_id)
+
     def app_owner(self):
         return _raw.SWS_SteamAPI_ISteamApps_GetAppOwner()
 
     def available_game_languages(self):
         return _raw.SWS_SteamAPI_ISteamApps_GetAvailableGameLanguages()
 
+    def beta_info_string(self, beta_index):
+        return _raw.SWS_Steam_Apps_GetBetaInfoString(beta_index)
+
+    def current_beta_name_string(self):
+        return _raw.SWS_Steam_Apps_GetCurrentBetaNameString()
+
     def current_game_language(self):
         return _raw.SWS_SteamAPI_ISteamApps_GetCurrentGameLanguage()
 
     def dlc_count(self):
         return _raw.SWS_SteamAPI_ISteamApps_GetDLCCount()
+
+    def dlc_data_by_index_string(self, dlc_index):
+        return _raw.SWS_Steam_Apps_GetDLCDataByIndexString(dlc_index)
+
+    def dlc_download_progress_string(self, app_id):
+        return _raw.SWS_Steam_Apps_GetDlcDownloadProgressString(app_id)
 
     def earliest_purchase_unix_time(self, n_app_id):
         return _raw.SWS_SteamAPI_ISteamApps_GetEarliestPurchaseUnixTime(n_app_id)
@@ -29,6 +44,9 @@ class _AppsAPI:
 
     def install_dlc(self, n_app_id):
         return _raw.SWS_SteamAPI_ISteamApps_InstallDLC(n_app_id)
+
+    def installed_depots_list(self, app_id):
+        return _raw.SWS_Steam_Apps_GetInstalledDepotsList(app_id)
 
     def is_app_installed(self, app_id):
         return _raw.SWS_SteamAPI_ISteamApps_BIsAppInstalled(app_id)
@@ -54,14 +72,23 @@ class _AppsAPI:
     def is_subscribed_from_free_weekend(self):
         return _raw.SWS_SteamAPI_ISteamApps_BIsSubscribedFromFreeWeekend()
 
+    def is_timed_trial_string(self):
+        return _raw.SWS_Steam_Apps_IsTimedTrialString()
+
     def is_vac_banned(self):
         return _raw.SWS_SteamAPI_ISteamApps_BIsVACBanned()
+
+    def launch_command_line_string(self):
+        return _raw.SWS_Steam_Apps_GetLaunchCommandLineString()
 
     def launch_query_param(self, pch_key):
         return _raw.SWS_SteamAPI_ISteamApps_GetLaunchQueryParam(pch_key)
 
     def mark_content_corrupt(self, b_missing_files_only):
         return _raw.SWS_SteamAPI_ISteamApps_MarkContentCorrupt(b_missing_files_only)
+
+    def num_betas_string(self):
+        return _raw.SWS_Steam_Apps_GetNumBetasString()
 
     def request_all_proof_of_purchase_keys(self):
         return _raw.SWS_SteamAPI_ISteamApps_RequestAllProofOfPurchaseKeys()
@@ -80,6 +107,9 @@ class _AppsAPI:
 
     def set_game_render_resolution(self, un_width, un_height):
         return _raw.SWS_SteamAPI_ISteamApps_SetGameRenderResolution(un_width, un_height)
+
+    def timed_trial_string(self):
+        return _raw.SWS_Steam_Apps_GetTimedTrialString()
 
     def uninstall_dlc(self, n_app_id):
         return _raw.SWS_SteamAPI_ISteamApps_UninstallDLC(n_app_id)
@@ -102,6 +132,9 @@ class _ControllerAPI:
 
     def analog_action_handle(self, psz_action_name):
         return _raw.SWS_SteamAPI_ISteamController_GetAnalogActionHandle(psz_action_name)
+
+    def controller_binding_revision_string(self, controller_handle):
+        return _raw.SWS_Steam_Controller_GetControllerBindingRevisionString(controller_handle)
 
     def controller_for_gamepad_index(self, n_index):
         return _raw.SWS_SteamAPI_ISteamController_GetControllerForGamepadIndex(n_index)
@@ -193,6 +226,9 @@ class _FriendsAPI:
 
     def chat_member_by_index(self, steam_id_clan, i_user):
         return _raw.SWS_SteamAPI_ISteamFriends_GetChatMemberByIndex(steam_id_clan, i_user)
+
+    def clan_activity_counts_string(self, steam_id_clan):
+        return _raw.SWS_Steam_Friends_GetClanActivityCountsString(steam_id_clan)
 
     def clan_by_index(self, i_clan):
         return _raw.SWS_SteamAPI_ISteamFriends_GetClanByIndex(i_clan)
@@ -814,8 +850,17 @@ class _HTTPAPI:
     def defer_http_request(self, h_request):
         return _raw.SWS_SteamAPI_ISteamHTTP_DeferHTTPRequest(h_request)
 
+    def http_download_progress_pct_string(self, h_request):
+        return _raw.SWS_Steam_HTTP_GetHTTPDownloadProgressPctString(h_request)
+
+    def http_request_was_timed_out_string(self, h_request):
+        return _raw.SWS_Steam_HTTP_GetHTTPRequestWasTimedOutString(h_request)
+
     def http_response_body_data_bytes(self, request, data_size):
         return _raw.SWS_Steam_HTTP_GetHTTPResponseBodyDataBytes(request, data_size)
+
+    def http_response_body_size_string(self, h_request):
+        return _raw.SWS_Steam_HTTP_GetHTTPResponseBodySizeString(h_request)
 
     def http_streaming_response_body_data_bytes(self, request, offset, data_size):
         return _raw.SWS_Steam_HTTP_GetHTTPStreamingResponseBodyDataBytes(request, offset, data_size)
@@ -889,6 +934,9 @@ class _InputAPI:
 
     def deactivate_all_action_set_layers(self, input_handle):
         return _raw.SWS_SteamAPI_ISteamInput_DeactivateAllActionSetLayers(input_handle)
+
+    def device_binding_revision_string(self, input_handle):
+        return _raw.SWS_Steam_Input_GetDeviceBindingRevisionString(input_handle)
 
     def digital_action_handle(self, psz_action_name):
         return _raw.SWS_SteamAPI_ISteamInput_GetDigitalActionHandle(psz_action_name)
@@ -987,6 +1035,18 @@ class _InventoryAPI:
     def destroy_result(self, result_handle):
         return _raw.SWS_SteamAPI_ISteamInventory_DestroyResult(result_handle)
 
+    def item_definition_i_ds_list(self):
+        return _raw.SWS_Steam_Inventory_GetItemDefinitionIDsList()
+
+    def item_definition_property_string(self, definition, property_name):
+        return _raw.SWS_Steam_Inventory_GetItemDefinitionPropertyString(definition, property_name)
+
+    def item_price_string(self, definition):
+        return _raw.SWS_Steam_Inventory_GetItemPriceString(definition)
+
+    def items_with_prices_list(self):
+        return _raw.SWS_Steam_Inventory_GetItemsWithPricesList()
+
     def load_item_definitions(self):
         return _raw.SWS_SteamAPI_ISteamInventory_LoadItemDefinitions()
 
@@ -1001,6 +1061,9 @@ class _InventoryAPI:
 
     def request_prices(self):
         return _raw.SWS_SteamAPI_ISteamInventory_RequestPrices()
+
+    def result_item_property_string(self, result_handle, item_index, property_name):
+        return _raw.SWS_Steam_Inventory_GetResultItemPropertyString(result_handle, item_index, property_name)
 
     def result_status(self, result_handle):
         return _raw.SWS_SteamAPI_ISteamInventory_GetResultStatus(result_handle)
@@ -1474,6 +1537,9 @@ class _MatchmakingAPI:
     def favorite_game_count(self):
         return _raw.SWS_SteamAPI_ISteamMatchmaking_GetFavoriteGameCount()
 
+    def favorite_game_string(self, i_game):
+        return _raw.SWS_Steam_Matchmaking_GetFavoriteGameString(i_game)
+
     def invite_user_to_lobby(self, steam_id_lobby, steam_id_invitee):
         return _raw.SWS_SteamAPI_ISteamMatchmaking_InviteUserToLobby(steam_id_lobby, steam_id_invitee)
 
@@ -1488,6 +1554,9 @@ class _MatchmakingAPI:
 
     def lobby_data(self, steam_id_lobby, pch_key):
         return _raw.SWS_SteamAPI_ISteamMatchmaking_GetLobbyData(steam_id_lobby, pch_key)
+
+    def lobby_data_by_index_string(self, steam_id_lobby, i_lobby_data):
+        return _raw.SWS_Steam_Matchmaking_GetLobbyDataByIndexString(steam_id_lobby, i_lobby_data)
 
     def lobby_data_count(self, steam_id_lobby):
         return _raw.SWS_SteamAPI_ISteamMatchmaking_GetLobbyDataCount(steam_id_lobby)
@@ -1644,6 +1713,15 @@ class _NetworkingAPI:
 
     def destroy_socket(self, h_socket, b_notify_remote_end):
         return _raw.SWS_SteamAPI_ISteamNetworking_DestroySocket(h_socket, b_notify_remote_end)
+
+    def is_2_p_packet_available_string(self, n_channel):
+        return _raw.SWS_Steam_Networking_IsP2PPacketAvailableString(n_channel)
+
+    def is_data_available_on_socket_string(self, h_socket):
+        return _raw.SWS_Steam_Networking_IsDataAvailableOnSocketString(h_socket)
+
+    def is_data_available_string(self, h_listen_socket):
+        return _raw.SWS_Steam_Networking_IsDataAvailableString(h_listen_socket)
 
     def max_packet_size(self, h_socket):
         return _raw.SWS_SteamAPI_ISteamNetworking_GetMaxPacketSize(h_socket)
@@ -1918,6 +1996,9 @@ class _PartiesAPI:
     def num_active_beacons(self):
         return _raw.SWS_SteamAPI_ISteamParties_GetNumActiveBeacons()
 
+    def num_available_beacon_locations_string(self):
+        return _raw.SWS_Steam_Parties_GetNumAvailableBeaconLocationsString()
+
     def on_reservation_completed(self, ul_beacon, steam_id_user):
         return _raw.SWS_SteamAPI_ISteamParties_OnReservationCompleted(ul_beacon, steam_id_user)
 
@@ -1945,6 +2026,9 @@ class _RemotePlayAPI:
 
     def session_client_name(self, un_session_id):
         return _raw.SWS_SteamAPI_ISteamRemotePlay_GetSessionClientName(un_session_id)
+
+    def session_client_resolution_string(self, un_session_id):
+        return _raw.SWS_Steam_RemotePlay_GetSessionClientResolutionString(un_session_id)
 
     def session_count(self):
         return _raw.SWS_SteamAPI_ISteamRemotePlay_GetSessionCount()
@@ -2076,6 +2160,9 @@ class _RemoteStorageAPI:
     def published_item_vote_details(self, un_published_file_id):
         return _raw.SWS_SteamAPI_ISteamRemoteStorage_GetPublishedItemVoteDetails(un_published_file_id)
 
+    def quota_string(self):
+        return _raw.SWS_Steam_RemoteStorage_GetQuotaString()
+
     def set_cloud_enabled_for_app(self, b_enabled):
         return _raw.SWS_SteamAPI_ISteamRemoteStorage_SetCloudEnabledForApp(b_enabled)
 
@@ -2093,6 +2180,9 @@ class _RemoteStorageAPI:
 
     def ugc_download(self, h_content, un_priority):
         return _raw.SWS_SteamAPI_ISteamRemoteStorage_UGCDownload(h_content, un_priority)
+
+    def ugc_download_progress_string(self, h_content):
+        return _raw.SWS_Steam_RemoteStorage_GetUGCDownloadProgressString(h_content)
 
     def ugc_download_to_location(self, h_content, pch_location, un_priority):
         return _raw.SWS_SteamAPI_ISteamRemoteStorage_UGCDownloadToLocation(h_content, pch_location, un_priority)
@@ -2268,8 +2358,17 @@ class _UGCAPI:
     def init_workshop_for_game_server(self, un_workshop_depot_id, psz_folder):
         return _raw.SWS_SteamAPI_ISteamUGC_BInitWorkshopForGameServer(un_workshop_depot_id, psz_folder)
 
+    def item_download_info_string(self, published_file_id):
+        return _raw.SWS_Steam_UGC_GetItemDownloadInfoString(published_file_id)
+
+    def item_install_info_string(self, published_file_id):
+        return _raw.SWS_Steam_UGC_GetItemInstallInfoString(published_file_id)
+
     def item_state(self, n_published_file_id):
         return _raw.SWS_SteamAPI_ISteamUGC_GetItemState(n_published_file_id)
+
+    def item_update_progress_string(self, update_handle):
+        return _raw.SWS_Steam_UGC_GetItemUpdateProgressString(update_handle)
 
     def mark_downloaded_item_as_unused(self, n_published_file_id):
         return _raw.SWS_SteamAPI_ISteamUGC_MarkDownloadedItemAsUnused(n_published_file_id)
@@ -2283,6 +2382,21 @@ class _UGCAPI:
     def num_supported_game_versions(self, handle, index):
         return _raw.SWS_SteamAPI_ISteamUGC_GetNumSupportedGameVersions(handle, index)
 
+    def query_ugc_additional_preview_string(self, query_handle, index, preview_index):
+        return _raw.SWS_Steam_UGC_GetQueryUGCAdditionalPreviewString(query_handle, index, preview_index)
+
+    def query_ugc_key_value_tag_by_index_string(self, query_handle, index, tag_index):
+        return _raw.SWS_Steam_UGC_GetQueryUGCKeyValueTagByIndexString(query_handle, index, tag_index)
+
+    def query_ugc_key_value_tag_string(self, handle, index, key_value_tag_index):
+        return _raw.SWS_Steam_UGC_GetQueryUGCKeyValueTagString(handle, index, key_value_tag_index)
+
+    def query_ugc_key_value_tag_value_string(self, query_handle, index, key):
+        return _raw.SWS_Steam_UGC_GetQueryUGCKeyValueTagValueString(query_handle, index, key)
+
+    def query_ugc_metadata_string(self, query_handle, index):
+        return _raw.SWS_Steam_UGC_GetQueryUGCMetadataString(query_handle, index)
+
     def query_ugc_num_additional_previews(self, handle, index):
         return _raw.SWS_SteamAPI_ISteamUGC_GetQueryUGCNumAdditionalPreviews(handle, index)
 
@@ -2291,6 +2405,18 @@ class _UGCAPI:
 
     def query_ugc_num_tags(self, handle, index):
         return _raw.SWS_SteamAPI_ISteamUGC_GetQueryUGCNumTags(handle, index)
+
+    def query_ugc_preview_url_string(self, query_handle, index):
+        return _raw.SWS_Steam_UGC_GetQueryUGCPreviewURLString(query_handle, index)
+
+    def query_ugc_statistic_string(self, handle, index, e_stat_type):
+        return _raw.SWS_Steam_UGC_GetQueryUGCStatisticString(handle, index, e_stat_type)
+
+    def query_ugc_tag_display_name_string(self, query_handle, index, tag_index):
+        return _raw.SWS_Steam_UGC_GetQueryUGCTagDisplayNameString(query_handle, index, tag_index)
+
+    def query_ugc_tag_string(self, query_handle, index, tag_index):
+        return _raw.SWS_Steam_UGC_GetQueryUGCTagString(query_handle, index, tag_index)
 
     def release_query_ugc_request(self, handle):
         return _raw.SWS_SteamAPI_ISteamUGC_ReleaseQueryUGCRequest(handle)
@@ -2418,6 +2544,9 @@ class _UGCAPI:
     def subscribe_item(self, n_published_file_id):
         return _raw.SWS_SteamAPI_ISteamUGC_SubscribeItem(n_published_file_id)
 
+    def supported_game_version_data_string(self, query_handle, index, version_index):
+        return _raw.SWS_Steam_UGC_GetSupportedGameVersionDataString(query_handle, index, version_index)
+
     def suspend_downloads(self, b_suspend):
         return _raw.SWS_SteamAPI_ISteamUGC_SuspendDownloads(b_suspend)
 
@@ -2448,6 +2577,9 @@ class _UserAPI:
 
     def auth_ticket_for_web_api(self, pch_identity):
         return _raw.SWS_SteamAPI_ISteamUser_GetAuthTicketForWebApi(pch_identity)
+
+    def available_voice_string(self, sample_rate):
+        return _raw.SWS_Steam_User_GetAvailableVoiceString(sample_rate)
 
     def begin_auth_session_bytes(self, data, data_size, steam_id):
         return _raw.SWS_Steam_User_BeginAuthSessionBytes(data, data_size, steam_id)
@@ -2521,6 +2653,9 @@ class _UserAPI:
     def track_app_usage_event(self, game_id, e_app_usage_event, pch_extra_info):
         return _raw.SWS_SteamAPI_ISteamUser_TrackAppUsageEvent(game_id, e_app_usage_event, pch_extra_info)
 
+    def user_data_folder_string(self):
+        return _raw.SWS_Steam_User_GetUserDataFolderString()
+
     def user_has_license_for_app(self, steam_id, app_id):
         return _raw.SWS_SteamAPI_ISteamUser_UserHasLicenseForApp(steam_id, app_id)
 
@@ -2569,6 +2704,12 @@ class _UserStatsAPI:
 
     def leaderboard_sort_method(self, h_steam_leaderboard):
         return _raw.SWS_SteamAPI_ISteamUserStats_GetLeaderboardSortMethod(h_steam_leaderboard)
+
+    def most_achieved_achievement_info_string(self):
+        return _raw.SWS_Steam_UserStats_GetMostAchievedAchievementInfoString()
+
+    def next_most_achieved_achievement_info_string(self, i_iterator_previous):
+        return _raw.SWS_Steam_UserStats_GetNextMostAchievedAchievementInfoString(i_iterator_previous)
 
     def num_achievements(self):
         return _raw.SWS_SteamAPI_ISteamUserStats_GetNumAchievements()
@@ -2628,11 +2769,20 @@ class _UtilsAPI:
     def dismiss_gamepad_text_input(self):
         return _raw.SWS_SteamAPI_ISteamUtils_DismissGamepadTextInput()
 
+    def entered_gamepad_text_input_string(self):
+        return _raw.SWS_Steam_Utils_GetEnteredGamepadTextInputString()
+
     def entered_gamepad_text_length(self):
         return _raw.SWS_SteamAPI_ISteamUtils_GetEnteredGamepadTextLength()
 
+    def filter_text_string(self, context, source_steam_id, input_message):
+        return _raw.SWS_Steam_Utils_FilterTextString(context, source_steam_id, input_message)
+
     def i_pv_6_connectivity_state(self, e_protocol):
         return _raw.SWS_SteamAPI_ISteamUtils_GetIPv6ConnectivityState(e_protocol)
+
+    def image_size_string(self, image):
+        return _raw.SWS_Steam_Utils_GetImageSizeString(image)
 
     def init_filter_text(self, un_filter_options):
         return _raw.SWS_SteamAPI_ISteamUtils_InitFilterText(un_filter_options)
@@ -2642,6 +2792,9 @@ class _UtilsAPI:
 
     def ipc_call_count(self):
         return _raw.SWS_SteamAPI_ISteamUtils_GetIPCCallCount()
+
+    def is_api_call_completed_string(self, h_steam_api_call):
+        return _raw.SWS_Steam_Utils_IsAPICallCompletedString(h_steam_api_call)
 
     def is_overlay_enabled(self):
         return _raw.SWS_SteamAPI_ISteamUtils_IsOverlayEnabled()
@@ -2706,6 +2859,9 @@ class _UtilsAPI:
 utils = _UtilsAPI()
 
 class _VideoAPI:
+
+    def is_broadcasting_string(self):
+        return _raw.SWS_Steam_Video_IsBroadcastingString()
 
     def opf_settings(self, un_video_app_id):
         return _raw.SWS_SteamAPI_ISteamVideo_GetOPFSettings(un_video_app_id)
