@@ -137,9 +137,9 @@ def c_method(
         )
 
     return {
-        "shim_name": method["wrapper_name"],
+        "helper_name": method["wrapper_name"],
         "raw_c_name": c_wrapper_name(method),
-        "shim_return_type": return_type,
+        "helper_return_type": return_type,
         "return_type": c_return_type,
         "classname": method.get("classname"),
         "friendly_name": method.get("methodname"),
@@ -205,7 +205,7 @@ def c_api_methods(
 
 
 def method_friendly_name(method: dict) -> str:
-    return method.get("friendly_name") or method["shim_name"]
+    return method.get("friendly_name") or method["helper_name"]
 
 
 def method_language_support(method: dict) -> str:
@@ -257,12 +257,12 @@ def method_return_type(method: dict) -> str:
     return method["return_type"]
 
 
-def shim_name(method: dict) -> str:
-    return method["shim_name"]
+def helper_name(method: dict) -> str:
+    return method["helper_name"]
 
 
-def shim_return_type(method: dict) -> str:
-    return method["shim_return_type"]
+def helper_return_type(method: dict) -> str:
+    return method["helper_return_type"]
 
 
 def friendly_name(method: dict) -> str | None:
@@ -294,8 +294,8 @@ def c_api_model(api: dict, c_methods: list[dict], skipped_methods: list[dict]) -
                 "raw_c_name": method["raw_c_name"],
                 "friendly_name": method_friendly_name(method),
                 "return_type": method["return_type"],
-                "shim_name": method["shim_name"],
-                "shim_return_type": method["shim_return_type"],
+                "helper_name": method["helper_name"],
+                "helper_return_type": method["helper_return_type"],
                 "interface": method.get("interface"),
                 "classname": method.get("classname"),
                 "sdk_method_name": method.get("sdk_method_name"),

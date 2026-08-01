@@ -11,10 +11,10 @@ from generator_io import load_json, write_generated_text
 from steamworks_model import (
     disambiguate_names,
     friendly_name,
+    helper_name,
     method_params,
     model_methods,
     raw_c_name,
-    shim_name,
 )
 from steamworks_types import python_snake_name, split_words
 
@@ -40,8 +40,8 @@ def param_name(value: str) -> str:
     return result
 
 
-def helper_method_name(interface: str, shim_name: str, raw_c_name: str, *, drop_get: bool = True) -> str:
-    name = shim_name or raw_c_name.removeprefix("SWS_")
+def grouped_helper_method_name(interface: str, model_helper_name: str, raw_c_name: str, *, drop_get: bool = True) -> str:
+    name = model_helper_name or raw_c_name.removeprefix("SWS_")
     if name.startswith("Steam_"):
         name = name[len("Steam_"):]
     if interface and interface != "Global/static":
@@ -64,7 +64,7 @@ def method_candidates(model: dict) -> list[tuple[str, str, str, dict]]:
                 continue
             grouped_name = python_snake_name(method_name)
         else:
-            grouped_name = helper_method_name(interface, shim_name(method), c_name)
+            grouped_name = grouped_helper_method_name(interface, helper_name(method), c_name)
         candidates.append((interface, grouped_name, c_name, method))
     return candidates
 
@@ -75,9 +75,9 @@ def python_collision_name(candidate: tuple[str, str, str, dict]) -> str:
         sdk_flat_name = method.get("sdk_flat_name") or raw_c_name
         prefix = f"SteamAPI_ISteam{interface}_"
         return python_snake_name(sdk_flat_name.removeprefix(prefix), drop_get=False)
-    return helper_method_name(
+    return grouped_helper_method_name(
         interface,
-        shim_name(method),
+        helper_name(method),
         raw_c_name,
         drop_get=False,
     )

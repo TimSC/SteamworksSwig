@@ -7,7 +7,7 @@ import argparse
 from pathlib import Path
 
 from generator_io import load_json, render_template, write_text
-from steamworks_model import method_params, method_return_type, raw_c_name, shim_name, shim_return_type
+from steamworks_model import helper_name, helper_return_type, method_params, method_return_type, raw_c_name
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -67,13 +67,13 @@ def c_definition(method: dict) -> str:
         c_argument(param["cpp_type"], param["name"], param["c_type"])
         for param in method_params(method)
     )
-    expression = f'{shim_name(method)}( {args} )' if args else f'{shim_name(method)}()'
+    expression = f'{helper_name(method)}( {args} )' if args else f'{helper_name(method)}()'
     lines = [
         c_signature(method),
         "{",
         "\ttry",
         "\t{",
-        c_return(expression, method_return_type(method), shim_return_type(method)),
+        c_return(expression, method_return_type(method), helper_return_type(method)),
         "\t}",
         "\tcatch ( const std::exception & )",
         "\t{",

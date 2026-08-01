@@ -24,7 +24,7 @@ SKIP_NAME_PREFIXES = (
     "GetEncryptedAppTicket",
     "GetNext",
 )
-SKIP_SHIM_RETURN_TYPES = {"SteamAPICall_t"}
+SKIP_HELPER_RETURN_TYPES = {"SteamAPICall_t"}
 
 
 def load_model(path: Path) -> dict:
@@ -47,7 +47,7 @@ def live_smoke_calls(model: dict) -> list[dict]:
             continue
         if name.startswith(SKIP_NAME_PREFIXES):
             continue
-        if method.get("shim_return_type") in SKIP_SHIM_RETURN_TYPES:
+        if method.get("helper_return_type") in SKIP_HELPER_RETURN_TYPES:
             continue
         calls.append(
             {
