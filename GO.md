@@ -12,7 +12,7 @@ From the project root:
 python3 tools/build_go_swig.py --sdk-dir sdk_v165
 ```
 
-The script regenerates the C++ shim, creates `go/steamworks/raw`, runs SWIG
+The script regenerates the C++ helper layer, creates `go/steamworks/raw`, runs SWIG
 with the Go backend, writes the cgo compiler/linker flags for your local SDK
 path, generates grouped Go methods in `go/steamworks/generated.go`, and runs
 `go test ./go/...` to confirm the packages compile.
@@ -31,18 +31,16 @@ python3 tools/build_go_swig.py --sdk-dir sdk_v165 --skip-build
 
 The checked-in `go/steamworks` package is a small idiomatic wrapper around the
 raw generated API. It exposes typed initialization errors, Steamworks ID types,
-top-level convenience helpers, and grouped helpers such as:
+and grouped helpers such as:
 
 ```go
 steamworks.Init()
 steamworks.Shutdown()
 steamworks.RunCallbacks()
-steamworks.CurrentSteamID()
-steamworks.CurrentAppID()
-steamworks.User.SteamID()
+steamworks.User.GetSteamID()
 steamworks.User.LoggedOn()
-steamworks.Friends.PersonaName()
-steamworks.Utils.AppID()
+steamworks.Friends.GetPersonaName()
+steamworks.Utils.GetAppID()
 steamworks.Apps.IsSubscribed()
 ```
 
@@ -66,11 +64,11 @@ is available as:
 steamworks.Apps.IsVACBanned()
 ```
 
-The grouped generator also wraps scalar/string helper functions from the shared
-C ABI model, matching the Python grouped surface more closely. This includes
-friend game helpers, lobby constants and async-state helpers, game-server
-lifecycle helpers, matchmaking server helpers, networking status string
-helpers, and manual-dispatch callback decoders:
+The grouped generator also wraps helper functions from the shared C ABI model,
+matching the Python grouped surface more closely. This includes friend game
+helpers, lobby constants and async-state helpers, game-server lifecycle helpers,
+matchmaking server helpers, networking status helpers, byte/list helpers, and
+manual-dispatch callback decoders:
 
 ```go
 steamworks.Friends.GetFriendGamePlayedInfo(friendID)
@@ -78,11 +76,13 @@ steamworks.LobbyConstants.LobbyTypePublic()
 steamworks.GameServer.GetLastInitError()
 steamworks.ManualDispatch.DecodeCallbackLobbyEnter()
 steamworks.GetSteamInstallPath()
+steamworks.Lobby.GetDataEntries(lobbyID)
+steamworks.RemoteStorage.FileReadBytes("settings.json", 4096)
 ```
 
-Helpers returning owned byte buffers or owned string/byte lists remain available
-through `go/steamworks/raw` for now. The friendly Go layer intentionally waits
-for explicit conversion helpers before exposing those as `[]byte` or `[]string`.
+Owned C ABI strings, string lists, byte buffers, and byte-buffer lists are copied
+into Go `string`, `[]string`, `[]byte`, and `[][]byte` values before the C-owned
+memory is released.
 
 ## Manual Dispatch Callbacks
 
@@ -101,7 +101,7 @@ for {
 ```
 
 `Callback.Data` and `Callback.APICallResultData` contain decoded key/value text
-from the existing C++ shim. This is intentionally conservative; specialized Go
+from the existing C++ helper layer. This is intentionally conservative; specialized Go
 structs for individual callback payloads can be added on top of this API later.
 `steamworks.Shutdown()` clears registered helper callback state before shutting
 Steamworks down.

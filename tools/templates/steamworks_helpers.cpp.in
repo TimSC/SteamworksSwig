@@ -1,4 +1,4 @@
-#include "steamworks_swig_shim.h"
+#include "steamworks_helpers.h"
 
 #include <atomic>
 #include <cstdint>

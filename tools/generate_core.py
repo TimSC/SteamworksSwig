@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Generate a small SWIG-facing Steamworks shim from steam_api.json.
+"""Generate Steamworks helper sources and the shared C ABI model from steam_api.json.
 
 This intentionally starts with the subset that maps cleanly to scripting
 languages: interface methods with a known flat accessor and value-like
 parameters. Pointer/out/ref APIs, callbacks, structs, and raw interface-returning
-functions are skipped until they have explicit typemaps.
+functions are skipped until they have explicit helper coverage.
 """
 
 from __future__ import annotations
@@ -73,8 +73,8 @@ def generate(api: dict, output_dir: Path, steam_include: Path) -> None:
     )
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    header = output_dir / "steamworks_swig_shim.h"
-    source = output_dir / "steamworks_swig_shim.cpp"
+    header = output_dir / "steamworks_helpers.h"
+    source = output_dir / "steamworks_helpers.cpp"
     interface = output_dir / "steamworks.i"
     c_model = output_dir / "steamworks_c_api_model.json"
 
@@ -93,7 +93,7 @@ def generate(api: dict, output_dir: Path, steam_include: Path) -> None:
     write_text(
         header,
         render_template(
-            "steamworks_swig_shim.h.in",
+            "steamworks_helpers.h.in",
             generated_declarations=generated_declarations,
             manual_dispatch_declarations=manual_dispatch_declarations(),
             matchmaking_server_friends_declarations=matchmaking_server_friends_declarations(
@@ -106,7 +106,7 @@ def generate(api: dict, output_dir: Path, steam_include: Path) -> None:
     write_text(
         source,
         render_template(
-            "steamworks_swig_shim.cpp.in",
+            "steamworks_helpers.cpp.in",
             generated_definitions=generated_definitions,
             manual_dispatch_serializer_forward_declarations=manual_dispatch_serializer_forward_declarations(),
             manual_dispatch_serializers=manual_dispatch_serializers(),

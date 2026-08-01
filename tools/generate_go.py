@@ -35,8 +35,6 @@ GO_INITIALISMS = {
 }
 
 HAND_WRITTEN_METHODS = {
-    "Apps": {"IsSubscribed"},
-    "Friends": {"PersonaName"},
     "Global/static": {
         "CallbackDispatchModeAutomatic",
         "CallbackDispatchModeManual",
@@ -51,16 +49,6 @@ HAND_WRITTEN_METHODS = {
         "IsSteamRunning",
         "RunCallbacks",
         "Shutdown",
-    },
-    "Lobby": {
-        "ClearAsyncState",
-        "GetListLobbyByIndex",
-        "GetListLobbyNameByIndex",
-        "GetListResultCount",
-        "IsListComplete",
-        "IsListPending",
-        "ListHadIOFailure",
-        "RequestList",
     },
     "ManualDispatch": {
         "CallbackIsAPICallCompleted",
@@ -79,14 +67,6 @@ HAND_WRITTEN_METHODS = {
         "Init",
         "RunFrame",
     },
-    "User": {"LoggedOn", "SteamID"},
-    "Utils": {"AppID"},
-}
-
-UNFRIENDLY_RETURN_TYPES = {
-    "SWS_Bytes",
-    "SWS_BytesList",
-    "SWS_StringList",
 }
 
 GO_KEYWORDS = {
@@ -194,6 +174,9 @@ def go_type(c_type: str) -> str:
         "uint64_t": "uint64",
         "size_t": "int64",
         "SWS_String": "string",
+        "SWS_StringList": "[]string",
+        "SWS_Bytes": "[]byte",
+        "SWS_BytesList": "[][]byte",
     }[c_type]
 
 
@@ -224,10 +207,6 @@ def generate(model: dict) -> str:
         if c_name.startswith("SWS_Steam_ManualDispatch_CallbackID"):
             callback_name = c_name.removeprefix("SWS_Steam_ManualDispatch_CallbackID")
             callback_methods.append((go_identifier(callback_name), c_name))
-            continue
-
-        return_type = method_return_type(method)
-        if return_type in UNFRIENDLY_RETURN_TYPES:
             continue
 
         interface = method.get("interface")
@@ -265,7 +244,12 @@ def generate(model: dict) -> str:
             "args": go_args(method_params(method)),
             "arg_names": go_arg_names(method_params(method)),
             "return_type": None if return_type == "void" else go_type(return_type),
-            "convert_return": return_type == "SWS_String",
+                "convert_return": {
+                    "SWS_String": "takeRawString",
+                    "SWS_StringList": "takeRawStringList",
+                    "SWS_Bytes": "takeRawBytes",
+                    "SWS_BytesList": "takeRawBytesList",
+                }.get(return_type),
         }
         if receiver == "Global/static":
             module_functions.append(item)
@@ -300,7 +284,7 @@ def generate(model: dict) -> str:
             lines.append(f'func ({receiver_type}) {method["method_name"]}({args}){signature_return} {{')
             if return_type:
                 if method["convert_return"]:
-                    lines.append(f"\treturn takeRawString({raw_call})")
+                    lines.append(f'\treturn {method["convert_return"]}({raw_call})')
                 else:
                     lines.append(f"\treturn {raw_call}")
             else:
@@ -316,7 +300,7 @@ def generate(model: dict) -> str:
         lines.append(f'func {method["method_name"]}({args}){signature_return} {{')
         if return_type:
             if method["convert_return"]:
-                lines.append(f"\treturn takeRawString({raw_call})")
+                lines.append(f'\treturn {method["convert_return"]}({raw_call})')
             else:
                 lines.append(f"\treturn {raw_call}")
         else:

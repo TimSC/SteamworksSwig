@@ -61,9 +61,9 @@ From the project root:
 pip install .
 ```
 
-The install step regenerates the SWIG shim from Valve's `steam_api.json`, runs
-SWIG, builds the Python extension, and bundles the platform-specific Steamworks
-runtime library into the installed package.
+The install step regenerates the C ABI helper layer from Valve's
+`steam_api.json`, runs SWIG, builds the Python extension, and bundles the
+platform-specific Steamworks runtime library into the installed package.
 
 Source archives contain only SteamworksSwig project files. Consequently, a
 source archive cannot be built directly by `pip` until the developer has
@@ -162,9 +162,9 @@ ownership, string and buffer typemaps, and runtime-library loading must be
 reviewed for that language. The manual-versus-automatic callback dispatch
 restriction must also remain enforced.
 
-The internal C++ helper shim remains an implementation detail for Steamworks
+The internal C++ helper layer remains an implementation detail for Steamworks
 quirks, callback decoding, and APIs that need explicit adapters. Language
-bindings should target `generated/steamworks_c_api.h`, not the helper shim.
+bindings should target `generated/steamworks_c_api.h`, not the helper layer.
 
 The same Steamworks SDK distribution rules apply to every target language:
 obtain the SDK separately from Valve, do not redistribute SDK headers, API JSON,
@@ -245,7 +245,7 @@ results, and `SWS_Bytes` / `SWS_BytesList` for binary payload helpers.
 Automatically generated C ABI functions are named after Valve's unique flat API
 symbols with an `SWS_` prefix, for example
 `SWS_SteamAPI_ISteamApps_BIsSubscribed()`. Curated global helpers keep their
-existing shim names with the same prefix, for example `SWS_Steam_Init()`.
+helper names with the same prefix, for example `SWS_Steam_Init()`.
 
 This layer currently covers scalar/string-safe JSON methods plus core init,
 game-server, lobby, manual-dispatch, callback cleanup, byte-buffer helpers,

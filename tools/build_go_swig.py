@@ -107,8 +107,8 @@ def copy_generated_sources(outdir: Path) -> None:
     for filename in [
         "steamworks_c_api.cpp",
         "steamworks_c_api.h",
-        "steamworks_swig_shim.cpp",
-        "steamworks_swig_shim.h",
+        "steamworks_helpers.cpp",
+        "steamworks_helpers.h",
     ]:
         shutil.copy2(GENERATED_DIR / filename, outdir / filename)
 

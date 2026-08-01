@@ -23,7 +23,7 @@ API_JSON = STEAM_INCLUDE / "steam" / "steam_api.json"
 SWIG_INTERFACE = GENERATED_DIR / "steamworks.i"
 SWIG_PROXY = GENERATED_DIR / "steamworks.py"
 SWIG_WRAPPER = GENERATED_DIR / "steamworks_wrap.cpp"
-SHIM_SOURCE = GENERATED_DIR / "steamworks_swig_shim.cpp"
+HELPER_SOURCE = GENERATED_DIR / "steamworks_helpers.cpp"
 C_API_SOURCE = GENERATED_DIR / "steamworks_c_api.cpp"
 C_API_MODEL = GENERATED_DIR / "steamworks_c_api_model.json"
 PYTHON_GROUPED = ROOT / "python" / "steamworks" / "grouped.py"
@@ -191,7 +191,7 @@ extension = Extension(
     "steamworks._steamworks",
     sources=[
         setup_relative(SWIG_WRAPPER),
-        setup_relative(SHIM_SOURCE),
+        setup_relative(HELPER_SOURCE),
         setup_relative(C_API_SOURCE),
     ],
     include_dirs=[str(STEAM_INCLUDE), str(GENERATED_DIR)],

@@ -1,6 +1,6 @@
 #define SWS_BUILD_SHARED 1
 #include "steamworks_c_api.h"
-#include "steamworks_swig_shim.h"
+#include "steamworks_helpers.h"
 
 #include <cstdlib>
 #include <cstring>
@@ -118,6 +118,34 @@ void SWS_FreeBytesList( SWS_BytesList value )
 		SWS_FreeBytes( value.items[index] );
 	}
 	std::free( value.items );
+}
+
+size_t SWS_StringList_Size( SWS_StringList value )
+{
+	return value.size;
+}
+
+SWS_String SWS_StringList_Get( SWS_StringList value, size_t index )
+{
+	if ( index >= value.size || !value.items )
+	{
+		return {};
+	}
+	return value.items[index];
+}
+
+size_t SWS_BytesList_Size( SWS_BytesList value )
+{
+	return value.size;
+}
+
+SWS_Bytes SWS_BytesList_Get( SWS_BytesList value, size_t index )
+{
+	if ( index >= value.size || !value.items )
+	{
+		return {};
+	}
+	return value.items[index];
 }
 
 {{ c_definitions }}

@@ -84,37 +84,37 @@ def parse_bool(value: str) -> bool:
 def lobby_type_value(name: str) -> int:
     normalized = name.strip().lower()
     if normalized == "private":
-        return steamworks.k_ELobbyTypePrivate
+        return steamworks.lobby_constants.lobby_type_private()
     if normalized in {"friends", "friends-only", "friendsonly"}:
-        return steamworks.k_ELobbyTypeFriendsOnly
+        return steamworks.lobby_constants.lobby_type_friends_only()
     if normalized == "invisible":
-        return steamworks.k_ELobbyTypeInvisible
+        return steamworks.lobby_constants.lobby_type_invisible()
     if normalized == "private-unique":
-        return steamworks.k_ELobbyTypePrivateUnique
-    return steamworks.k_ELobbyTypePublic
+        return steamworks.lobby_constants.lobby_type_private_unique()
+    return steamworks.lobby_constants.lobby_type_public()
 
 
 def lobby_type_name(value: int) -> str:
     names = {
-        steamworks.k_ELobbyTypePrivate: "private",
-        steamworks.k_ELobbyTypeFriendsOnly: "friends",
-        steamworks.k_ELobbyTypePublic: "public",
-        steamworks.k_ELobbyTypeInvisible: "invisible",
-        steamworks.k_ELobbyTypePrivateUnique: "private-unique",
+        steamworks.lobby_constants.lobby_type_private(): "private",
+        steamworks.lobby_constants.lobby_type_friends_only(): "friends",
+        steamworks.lobby_constants.lobby_type_public(): "public",
+        steamworks.lobby_constants.lobby_type_invisible(): "invisible",
+        steamworks.lobby_constants.lobby_type_private_unique(): "private-unique",
     }
     return names.get(value, str(value))
 
 
 def persona_state_name(value: int) -> str:
     names = {
-        steamworks.k_EPersonaStateOffline: "offline",
-        steamworks.k_EPersonaStateOnline: "online",
-        steamworks.k_EPersonaStateBusy: "busy",
-        steamworks.k_EPersonaStateAway: "away",
-        steamworks.k_EPersonaStateSnooze: "snooze",
-        steamworks.k_EPersonaStateLookingToTrade: "looking-to-trade",
-        steamworks.k_EPersonaStateLookingToPlay: "looking-to-play",
-        steamworks.k_EPersonaStateInvisible: "invisible",
+        steamworks.friends_constants.persona_state_offline(): "offline",
+        steamworks.friends_constants.persona_state_online(): "online",
+        steamworks.friends_constants.persona_state_busy(): "busy",
+        steamworks.friends_constants.persona_state_away(): "away",
+        steamworks.friends_constants.persona_state_snooze(): "snooze",
+        steamworks.friends_constants.persona_state_looking_to_trade(): "looking-to-trade",
+        steamworks.friends_constants.persona_state_looking_to_play(): "looking-to-play",
+        steamworks.friends_constants.persona_state_invisible(): "invisible",
     }
     return names.get(value, str(value))
 
@@ -387,7 +387,7 @@ class Demo:
             print("Lobby list request is already pending.")
             return
         steamworks.matchmaking.add_request_lobby_list_string_filter(
-            "demo", "python", steamworks.k_ELobbyComparisonEqual
+            "demo", "python", steamworks.lobby_constants.lobby_comparison_equal()
         )
         steamworks.lobby.request_list()
         self.state.awaiting_list = True
@@ -692,7 +692,7 @@ class Demo:
                 index, steamworks.friends_constants.friend_flag_immediate()
             )
             state = steamworks.friends.friend_persona_state(friend_id)
-            if state == steamworks.k_EPersonaStateOffline:
+            if state == steamworks.friends_constants.persona_state_offline():
                 continue
 
             display_index = len(self.state.online_friends)

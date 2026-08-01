@@ -31,9 +31,9 @@ func main() {
 	steamworks.RunCallbacks()
 
 	fmt.Println("Hello from Steamworks!")
-	fmt.Printf("App ID: %d\n", steamworks.Utils.AppID())
+	fmt.Printf("App ID: %d\n", steamworks.Utils.GetAppID())
 	fmt.Printf("Logged on: %s\n", yesNo(steamworks.User.LoggedOn()))
-	fmt.Printf("Persona name: %s\n", steamworks.Friends.PersonaName())
-	fmt.Printf("Steam ID: %d\n", steamworks.User.SteamID())
+	fmt.Printf("Persona name: %s\n", steamworks.Friends.GetPersonaName())
+	fmt.Printf("Steam ID: %d\n", steamworks.User.GetSteamID())
 	fmt.Printf("Subscribed to app: %s\n", yesNo(steamworks.Apps.IsSubscribed()))
 }

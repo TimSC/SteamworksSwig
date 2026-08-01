@@ -49,14 +49,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	count := steamworks.Lobby.ListResultCount()
+	count := steamworks.Lobby.GetListResultCount()
 	fmt.Printf("Found %d lobbies\n", count)
 	for index := 0; index < int(count); index++ {
-		lobbyID := steamworks.Lobby.ListLobbyByIndex(index)
-		lobbyName := steamworks.Lobby.ListLobbyNameByIndex(index)
-		members := steamworks.Matchmaking.GetNumLobbyMembers(uint64(lobbyID))
-		memberLimit := steamworks.Matchmaking.GetLobbyMemberLimit(uint64(lobbyID))
-		ownerID := steamworks.Matchmaking.GetLobbyOwner(uint64(lobbyID))
+		lobbyID := steamworks.Lobby.GetListLobbyByIndex(index)
+		lobbyName := steamworks.Lobby.GetListLobbyNameByIndex(index)
+		members := steamworks.Matchmaking.GetNumLobbyMembers(lobbyID)
+		memberLimit := steamworks.Matchmaking.GetLobbyMemberLimit(lobbyID)
+		ownerID := steamworks.Matchmaking.GetLobbyOwner(lobbyID)
 		fmt.Printf("%d: %d name=%q members=%d/%d owner=%d\n", index, lobbyID, lobbyName, members, memberLimit, ownerID)
 	}
 }
