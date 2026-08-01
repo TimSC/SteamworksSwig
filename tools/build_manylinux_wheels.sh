@@ -5,7 +5,7 @@ ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 SDK_DIR="${STEAMWORKS_SDK_DIR:-"$ROOT_DIR/sdk"}"
 CONTAINER_ENGINE="${CONTAINER_ENGINE:-docker}"
 MANYLINUX_IMAGE="${MANYLINUX_IMAGE:-quay.io/pypa/manylinux2014_x86_64}"
-PYTHON_TAGS="${PYTHON_TAGS:-cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313}"
+PYTHON_TAGS="${PYTHON_TAGS:-cp39-cp39 cp310-cp310 cp311-cp311 cp312-cp312 cp313-cp313 cp314-cp314}"
 WHEELHOUSE="${WHEELHOUSE:-"$ROOT_DIR/wheelhouse"}"
 
 usage() {

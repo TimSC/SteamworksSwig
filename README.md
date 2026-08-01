@@ -148,7 +148,7 @@ tools/build_manylinux_wheels.sh --sdk-dir sdk
 ```
 
 By default this uses `quay.io/pypa/manylinux2014_x86_64` and builds CPython
-3.9-3.13 wheels into `wheelhouse/`. Limit the matrix when required:
+3.9-3.14 wheels into `wheelhouse/`. Limit the matrix when required:
 
 ```bash
 tools/build_manylinux_wheels.sh \
