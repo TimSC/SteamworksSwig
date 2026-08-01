@@ -274,6 +274,7 @@ public:
 
 	void Clear()
 	{
+		m_callback.Unregister();
 		m_events.clear();
 	}
 
@@ -352,6 +353,7 @@ public:
 
 	void Clear()
 	{
+		m_callback.Unregister();
 		m_messages.clear();
 	}
 
@@ -805,8 +807,18 @@ int Steam_InitFlat()
 	return g_lastInitResult;
 }
 
+void Steam_ClearHelperState()
+{
+	g_lobbyAsyncState.Clear();
+	g_networkingStatusChangedQueue.Clear();
+	g_lobbyChatQueue.Clear();
+	g_matchmakingPingResponse.Clear();
+	{{ matchmaking_server_friends_clear }}
+}
+
 void Steam_Shutdown()
 {
+	Steam_ClearHelperState();
 	SteamAPI_Shutdown();
 	g_callbackDispatchMode.store( k_CallbackDispatchModeUninitialized );
 }

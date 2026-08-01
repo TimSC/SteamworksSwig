@@ -88,6 +88,19 @@ structs for individual callback payloads can be added on top of this API later.
 `steamworks.Shutdown()` clears registered helper callback state before shutting
 Steamworks down.
 
+Use `Callback.Payload()` or `ParseCallbackPayload()` for the decoded key/value
+view:
+
+```go
+steamworks.PollCallbacks(steamworks.OnCallbackID(
+	steamworks.CallbackIDGameOverlayActivated(),
+	func(callback steamworks.Callback) {
+		payload := callback.Payload()
+		fmt.Println(payload["active"])
+	},
+))
+```
+
 ## Run the Go Smoke Test
 
 After generating the raw wrapper, run the Go smoke test from the project root:

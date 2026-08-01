@@ -57,6 +57,7 @@ C_MANUAL_FUNCTIONS = [
     ("int", "Steam_InitEx", []),
     ("int", "Steam_InitFlat", []),
     ("void", "Steam_Shutdown", []),
+    ("void", "Steam_ClearHelperState", []),
     ("void", "Steam_RunCallbacks", []),
     ("int", "Steam_GetCallbackDispatchMode", []),
     ("int", "Steam_CallbackDispatchModeUninitialized", []),
@@ -1122,6 +1123,9 @@ def generate(api: dict, output_dir: Path, steam_include: Path) -> None:
             matchmaking_server_friends_definitions=matchmaking_server_friends_definitions(
                 steam_include
             ),
+            matchmaking_server_friends_clear=matchmaking_server_friends_clear(
+                steam_include
+            ),
             matchmaking_server_friends_declarations=matchmaking_server_friends_declarations(
                 steam_include
             ),
@@ -1340,6 +1344,12 @@ void Steam_MatchmakingServers_ClearServerFriendsResult()
 	g_matchmakingServerFriendsResponse.Clear();
 }
 '''.strip()
+
+
+def matchmaking_server_friends_clear(steam_include: Path) -> str:
+    if not has_server_friends(steam_include):
+        return ""
+    return "g_matchmakingServerFriendsResponse.Clear();"
 
 
 def connection_realtime_optional_fields(steam_include: Path) -> str:

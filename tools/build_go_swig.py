@@ -20,6 +20,7 @@ FRIENDLY_DIR = ROOT / "go" / "steamworks"
 
 INITIALISMS = {
     "API",
+    "DLC",
     "HTML",
     "HTTP",
     "IP",
@@ -134,6 +135,8 @@ def split_camel(value: str) -> list[str]:
 
 
 def go_identifier(value: str) -> str:
+    if value.startswith("P2P"):
+        return "P2P" + go_identifier(value[len("P2P"):])
     words = split_camel(value)
     if not words:
         return value
@@ -229,6 +232,28 @@ def write_friendly_generated_wrappers(raw_go: Path) -> None:
             else:
                 lines.append(f"\t{raw_call}")
             lines.extend(["}", ""])
+
+    callback_pattern = re.compile(
+        r"^func (SWS_Steam_ManualDispatch_CallbackID([A-Za-z0-9]+))"
+        r"\(\) \(_swig_ret int\) \{"
+    )
+    callback_methods = []
+    for line in raw_go.read_text(encoding="utf-8").splitlines():
+        match = callback_pattern.match(line)
+        if not match:
+            continue
+        raw_name, callback_name = match.groups()
+        callback_methods.append((go_identifier(callback_name), raw_name))
+
+    for callback_name, raw_name in sorted(callback_methods):
+        lines.extend(
+            [
+                f"func CallbackID{callback_name}() CallbackID {{",
+                f"\treturn CallbackID(raw.{raw_name}())",
+                "}",
+                "",
+            ]
+        )
 
     FRIENDLY_DIR.mkdir(parents=True, exist_ok=True)
     (FRIENDLY_DIR / "generated.go").write_text("\n".join(lines), encoding="utf-8")
