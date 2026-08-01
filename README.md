@@ -28,7 +28,8 @@ generation and [LUA.md](LUA.md) for Lua SWIG build instructions.
 ## SDK Layout
 
 The Steamworks SDK is not included in this repository or its source
-distribution. Obtain an authorized copy directly from Valve through Steamworks.
+distribution. Obtain an authorized copy directly from Valve through the
+[Steamworks downloads page](https://partner.steamgames.com/downloads/list).
 This project expects that local SDK to be available at:
 
 ```text
