@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT_DIR = ROOT / "generated" / "output_helpers"
 
 PROMOTED_OUTPUT_HELPERS = {
+    "Steam_Apps_IsTimedTrialString",
     "Steam_Controller_GetControllerBindingRevisionString",
     "Steam_Friends_GetClanActivityCountsString",
     "Steam_HTTP_GetHTTPDownloadProgressPctString",
@@ -31,11 +32,18 @@ PROMOTED_OUTPUT_HELPERS = {
     "Steam_Input_GetDeviceBindingRevisionString",
     "Steam_Matchmaking_GetFavoriteGameString",
     "Steam_Matchmaking_GetLobbyDataByIndexString",
+    "Steam_Networking_IsDataAvailableOnSocketString",
+    "Steam_Networking_IsDataAvailableString",
+    "Steam_Networking_IsP2PPacketAvailableString",
     "Steam_Parties_GetNumAvailableBeaconLocationsString",
     "Steam_RemotePlay_GetSessionClientResolutionString",
     "Steam_RemoteStorage_GetQuotaString",
     "Steam_RemoteStorage_GetUGCDownloadProgressString",
+    "Steam_UGC_GetQueryUGCKeyValueTagString",
     "Steam_UGC_GetQueryUGCStatisticString",
+    "Steam_UserStats_GetMostAchievedAchievementInfoString",
+    "Steam_UserStats_GetNextMostAchievedAchievementInfoString",
+    "Steam_Utils_IsAPICallCompletedString",
 }
 
 HELPER_NAME_OVERRIDES = {

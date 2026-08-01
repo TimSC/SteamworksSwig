@@ -72,6 +72,9 @@ class _AppsAPI:
     def is_subscribed_from_free_weekend(self):
         return _raw.SWS_SteamAPI_ISteamApps_BIsSubscribedFromFreeWeekend()
 
+    def is_timed_trial_string(self):
+        return _raw.SWS_Steam_Apps_IsTimedTrialString()
+
     def is_vac_banned(self):
         return _raw.SWS_SteamAPI_ISteamApps_BIsVACBanned()
 
@@ -1711,6 +1714,15 @@ class _NetworkingAPI:
     def destroy_socket(self, h_socket, b_notify_remote_end):
         return _raw.SWS_SteamAPI_ISteamNetworking_DestroySocket(h_socket, b_notify_remote_end)
 
+    def is_2_p_packet_available_string(self, n_channel):
+        return _raw.SWS_Steam_Networking_IsP2PPacketAvailableString(n_channel)
+
+    def is_data_available_on_socket_string(self, h_socket):
+        return _raw.SWS_Steam_Networking_IsDataAvailableOnSocketString(h_socket)
+
+    def is_data_available_string(self, h_listen_socket):
+        return _raw.SWS_Steam_Networking_IsDataAvailableString(h_listen_socket)
+
     def max_packet_size(self, h_socket):
         return _raw.SWS_SteamAPI_ISteamNetworking_GetMaxPacketSize(h_socket)
 
@@ -2376,6 +2388,9 @@ class _UGCAPI:
     def query_ugc_key_value_tag_by_index_string(self, query_handle, index, tag_index):
         return _raw.SWS_Steam_UGC_GetQueryUGCKeyValueTagByIndexString(query_handle, index, tag_index)
 
+    def query_ugc_key_value_tag_string(self, handle, index, key_value_tag_index):
+        return _raw.SWS_Steam_UGC_GetQueryUGCKeyValueTagString(handle, index, key_value_tag_index)
+
     def query_ugc_key_value_tag_value_string(self, query_handle, index, key):
         return _raw.SWS_Steam_UGC_GetQueryUGCKeyValueTagValueString(query_handle, index, key)
 
@@ -2690,6 +2705,12 @@ class _UserStatsAPI:
     def leaderboard_sort_method(self, h_steam_leaderboard):
         return _raw.SWS_SteamAPI_ISteamUserStats_GetLeaderboardSortMethod(h_steam_leaderboard)
 
+    def most_achieved_achievement_info_string(self):
+        return _raw.SWS_Steam_UserStats_GetMostAchievedAchievementInfoString()
+
+    def next_most_achieved_achievement_info_string(self, i_iterator_previous):
+        return _raw.SWS_Steam_UserStats_GetNextMostAchievedAchievementInfoString(i_iterator_previous)
+
     def num_achievements(self):
         return _raw.SWS_SteamAPI_ISteamUserStats_GetNumAchievements()
 
@@ -2771,6 +2792,9 @@ class _UtilsAPI:
 
     def ipc_call_count(self):
         return _raw.SWS_SteamAPI_ISteamUtils_GetIPCCallCount()
+
+    def is_api_call_completed_string(self, h_steam_api_call):
+        return _raw.SWS_Steam_Utils_IsAPICallCompletedString(h_steam_api_call)
 
     def is_overlay_enabled(self):
         return _raw.SWS_SteamAPI_ISteamUtils_IsOverlayEnabled()
