@@ -22,6 +22,11 @@ from generate_callbacks import (
     manual_dispatch_serializers,
 )
 from generate_c_abi import write_c_abi_files
+from generate_output_helpers import (
+    generated_output_helper_declarations,
+    generated_output_helper_definitions,
+    generated_output_helper_functions,
+)
 from steamworks_helpers import C_HELPER_FUNCTIONS, C_MANUAL_FUNCTIONS
 from steamworks_discovery import declared_identifiers, iter_wrappable_methods
 from steamworks_model import (
@@ -80,11 +85,12 @@ def generate(api: dict, output_dir: Path, steam_include: Path) -> None:
 
     generated_declarations = "\n".join(declaration(method) for method in methods)
     generated_definitions = "\n\n".join(definition(method) for method in methods)
+    output_helper_functions = generated_output_helper_functions(api, flat_identifiers)
     c_methods = c_api_methods(
         api,
         methods,
         manual_functions=C_MANUAL_FUNCTIONS,
-        helper_functions=C_HELPER_FUNCTIONS,
+        helper_functions=C_HELPER_FUNCTIONS + output_helper_functions,
         manual_dispatch_functions=manual_dispatch_c_functions(),
     )
     skipped_methods = classify_skipped_methods(api, flat_identifiers, c_methods)
@@ -95,6 +101,9 @@ def generate(api: dict, output_dir: Path, steam_include: Path) -> None:
         render_template(
             "steamworks_helpers.h.in",
             generated_declarations=generated_declarations,
+            output_helper_declarations=generated_output_helper_declarations(
+                api, flat_identifiers
+            ),
             manual_dispatch_declarations=manual_dispatch_declarations(),
             matchmaking_server_friends_declarations=matchmaking_server_friends_declarations(
                 steam_include
@@ -108,6 +117,9 @@ def generate(api: dict, output_dir: Path, steam_include: Path) -> None:
         render_template(
             "steamworks_helpers.cpp.in",
             generated_definitions=generated_definitions,
+            output_helper_definitions=generated_output_helper_definitions(
+                api, flat_identifiers
+            ),
             manual_dispatch_serializer_forward_declarations=manual_dispatch_serializer_forward_declarations(),
             manual_dispatch_serializers=manual_dispatch_serializers(),
             manual_dispatch_definitions=manual_dispatch_definitions(),

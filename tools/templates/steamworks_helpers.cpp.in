@@ -1682,6 +1682,8 @@ std::string Steam_Video_IsBroadcastingString()
 	return payload;
 }
 
+{{ output_helper_definitions }}
+
 bool Steam_GameServer_Init( uint32 ip, uint16 gamePort, uint16 queryPort, int serverMode, const char * versionString )
 {
 	return SteamGameServer_Init( ip, gamePort, queryPort, static_cast<EServerMode>( serverMode ), versionString );
