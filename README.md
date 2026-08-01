@@ -97,24 +97,54 @@ the external SDK location is explicitly available inside the second build.
 
 ```text
 Steamworks SDK metadata
+  sdk/public/steam/steam_api.json
+  sdk/public/steam/steam_api_flat.h
+  read by tools/generate_model.py
         |
         v
 shared normalized API model
+  generated/steamworks_c_api_model.json
+  written by tools/generate_model.py
         |
         v
 C ABI + helper shim
+  generated/steamworks_c_api.h
+  generated/steamworks_c_api.cpp
+  generated/steamworks_helpers.h
+  generated/steamworks_helpers.cpp
+  generated/steamworks.i
+  written by tools/generate_core.py
         |
         v
 Python / Go / Lua / other bindings
+  Python: tools/generate_python.py, then setup.py runs SWIG/build_ext
+  Go:     tools/build_go_swig.py orchestrates SWIG and tools/generate_go.py
+  Lua:    tools/build_lua_swig.py orchestrates SWIG and tools/generate_lua.py
 ```
 
-The C ABI should become the primary generated product. Language bindings should
-wrap the same `SWS_*` surface so lifecycle fixes, helper functions, callback
-IDs, and type rules are shared.
+The C ABI is the primary generated product. Language bindings wrap the same
+`SWS_*` surface so lifecycle fixes, helper functions, callback IDs, and type
+rules are shared.
+
+`tools/generate_model.py` reads the SDK and is the main metadata/classification
+step. It pulls in curated helper metadata from `tools/helper_specs.json`
+through `tools/steamworks_helpers.py`, callback metadata from
+`tools/steamworks_callbacks.py` through `tools/generate_callbacks.py`, and
+promoted output helpers from `tools/generate_output_helpers.py`. It records the
+generated wrappers, output-helper implementation metadata, SDK feature flags,
+supported C ABI methods, and skipped methods in the shared model.
+
+`tools/generate_core.py` then renders the C++ helper shim, C ABI files, and
+SWIG interface from the generated model without rereading the SDK metadata.
+
+For Python package builds, `setup.py` runs `tools/generate_model.py`,
+`tools/generate_core.py`, `tools/generate_python.py`, and SWIG automatically
+before compiling the `steamworks._steamworks` extension. API coverage docs are
+generated separately with `tools/generate_api_docs.py`.
 
 ## Shared API Model
 
-The generator writes a shared model file:
+`tools/generate_model.py` writes a shared model file:
 
 ```text
 generated/steamworks_c_api_model.json
@@ -266,8 +296,9 @@ output memory.
 
 These helpers are listed in `tools/helper_specs.json` and loaded by
 `tools/steamworks_helpers.py`. Keeping the list as data makes the curated API
-surface easier to review while still letting `tools/generate_core.py` emit the
-matching C declarations, wrappers, and model entries. The C++ helper
+surface easier to review while still letting `tools/generate_model.py` record
+the matching model entries and `tools/generate_core.py` emit the C declarations
+and wrappers. The C++ helper
 implementations remain in the templates where behavior is required.
 
 Some helper candidates can be discovered automatically from common SDK
@@ -299,7 +330,8 @@ methods.
 The generator can be run directly:
 
 ```bash
-python3 tools/generate_core.py --output-dir generated
+python3 tools/generate_model.py --output generated/steamworks_c_api_model.json
+python3 tools/generate_core.py --model generated/steamworks_c_api_model.json --output-dir generated
 ```
 
 The generated wrapper currently covers methods with SWIG-friendly value and

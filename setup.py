@@ -18,6 +18,7 @@ SDK_DIR = Path(os.environ.get("STEAMWORKS_SDK_DIR", ROOT / "sdk")).expanduser().
 STEAM_INCLUDE = SDK_DIR / "public"
 GENERATED_DIR = ROOT / "generated"
 GENERATOR = ROOT / "tools" / "generate_core.py"
+MODEL_GENERATOR = ROOT / "tools" / "generate_model.py"
 PYTHON_GENERATOR = ROOT / "tools" / "generate_python.py"
 API_JSON = STEAM_INCLUDE / "steam" / "steam_api.json"
 SWIG_INTERFACE = GENERATED_DIR / "steamworks.i"
@@ -121,11 +122,22 @@ def generate_sources() -> None:
     subprocess.check_call(
         [
             sys.executable,
-            str(GENERATOR),
+            str(MODEL_GENERATOR),
             "--api-json",
             str(API_JSON),
             "--steam-include",
             str(STEAM_INCLUDE),
+            "--output",
+            str(C_API_MODEL),
+        ],
+        cwd=ROOT,
+    )
+    subprocess.check_call(
+        [
+            sys.executable,
+            str(GENERATOR),
+            "--model",
+            str(C_API_MODEL),
             "--output-dir",
             str(GENERATED_DIR),
         ],

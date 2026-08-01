@@ -1,21 +1,17 @@
 #!/usr/bin/env python3
-"""Generate Steamworks helper sources and the shared C ABI model from steam_api.json.
+"""Generate Steamworks helper sources from the shared C ABI model.
 
-This intentionally starts with the subset that maps cleanly to scripting
-languages: interface methods with a known flat accessor and value-like
-parameters. Pointer/out/ref APIs, callbacks, structs, and raw interface-returning
-functions are skipped until they have explicit helper coverage.
+Run tools/generate_model.py first after changing the SDK, helper metadata, or
+model classification logic.
 """
 
 from __future__ import annotations
 
 import argparse
-import json
 from pathlib import Path
 
 from generator_io import load_json, render_template, write_text
 from generate_callbacks import (
-    manual_dispatch_c_functions,
     manual_dispatch_declarations,
     manual_dispatch_definitions,
     manual_dispatch_serializer_forward_declarations,
@@ -23,17 +19,13 @@ from generate_callbacks import (
 )
 from generate_c_abi import write_c_abi_files
 from generate_output_helpers import (
-    generated_output_helper_declarations,
-    generated_output_helper_definitions,
-    generated_output_helper_functions,
+    output_helper_declarations_from_model,
+    output_helper_definitions_from_model,
 )
 from steamworks_helpers import C_HELPER_FUNCTIONS, C_MANUAL_FUNCTIONS
-from steamworks_discovery import declared_identifiers, iter_wrappable_methods
-from steamworks_model import (
-    c_api_methods,
-    c_api_model,
-    classify_skipped_methods,
-)
+
+
+DEFAULT_MODEL = Path("generated/steamworks_c_api_model.json")
 
 
 def declaration(method: dict) -> str:
@@ -88,33 +80,17 @@ def definition(method: dict) -> str:
     return "\n".join(lines)
 
 
-def generate(api: dict, output_dir: Path, steam_include: Path) -> None:
-    flat_header = steam_include / "steam" / "steam_api_flat.h"
-    flat_header_text = flat_header.read_text(encoding="utf-8", errors="replace")
-    flat_identifiers = declared_identifiers(flat_header_text)
-    methods = sorted(
-        iter_wrappable_methods(api, flat_identifiers),
-        key=lambda item: item["wrapper_name"],
-    )
+def generate(model: dict, output_dir: Path) -> None:
+    methods = model.get("generated_wrappers", [])
+    features = model.get("template_features", {})
     output_dir.mkdir(parents=True, exist_ok=True)
 
     header = output_dir / "steamworks_helpers.h"
     source = output_dir / "steamworks_helpers.cpp"
     interface = output_dir / "steamworks.i"
-    c_model = output_dir / "steamworks_c_api_model.json"
 
     generated_declarations = "\n".join(declaration(method) for method in methods)
     generated_definitions = "\n\n".join(definition(method) for method in methods)
-    output_helper_functions = generated_output_helper_functions(api, flat_identifiers)
-    c_methods = c_api_methods(
-        api,
-        methods,
-        manual_functions=C_MANUAL_FUNCTIONS,
-        helper_functions=C_HELPER_FUNCTIONS + output_helper_functions,
-        manual_dispatch_functions=manual_dispatch_c_functions(),
-    )
-    skipped_methods = classify_skipped_methods(api, flat_identifiers, c_methods)
-    model = c_api_model(api, c_methods, skipped_methods)
 
     write_text(
         header,
@@ -122,9 +98,7 @@ def generate(api: dict, output_dir: Path, steam_include: Path) -> None:
             "steamworks_helpers.h.in",
             helper_declarations=helper_declarations(manual_helper_declaration_items() + C_HELPER_FUNCTIONS),
             generated_declarations=generated_declarations,
-            output_helper_declarations=generated_output_helper_declarations(
-                api, flat_identifiers
-            ),
+            output_helper_declarations=output_helper_declarations_from_model(model),
             manual_dispatch_declarations=manual_dispatch_declarations(),
         )
         + "\n",
@@ -135,29 +109,27 @@ def generate(api: dict, output_dir: Path, steam_include: Path) -> None:
         render_template(
             "steamworks_helpers.cpp.in",
             generated_definitions=generated_definitions,
-            output_helper_definitions=generated_output_helper_definitions(
-                api, flat_identifiers
-            ),
+            output_helper_definitions=output_helper_definitions_from_model(model),
             manual_dispatch_serializer_forward_declarations=manual_dispatch_serializer_forward_declarations(),
             manual_dispatch_serializers=manual_dispatch_serializers(),
             manual_dispatch_definitions=manual_dispatch_definitions(),
             game_server_item_optional_fields=game_server_item_optional_fields(
-                steam_include
+                features.get("game_server_item_friend_counts", False)
             ),
             matchmaking_server_friends_helpers=matchmaking_server_friends_helpers(
-                steam_include
+                features.get("matchmaking_server_friends", False)
             ),
             matchmaking_server_friends_definitions=matchmaking_server_friends_definitions(
-                steam_include
+                features.get("matchmaking_server_friends", False)
             ),
             matchmaking_server_friends_clear=matchmaking_server_friends_clear(
-                steam_include
+                features.get("matchmaking_server_friends", False)
             ),
             matchmaking_server_friends_declarations=matchmaking_server_friends_declarations(
-                steam_include
+                features.get("matchmaking_server_friends", False)
             ),
             connection_realtime_optional_fields=connection_realtime_optional_fields(
-                steam_include
+                features.get("connection_realtime_max_jitter", False)
             ),
         )
         + "\n",
@@ -169,22 +141,16 @@ def generate(api: dict, output_dir: Path, steam_include: Path) -> None:
         + "\n",
     )
 
-    write_text(
-        c_model,
-        json.dumps(model, indent=2, sort_keys=True) + "\n",
-    )
     write_c_abi_files(model, output_dir)
 
     print(
-        f"Generated {len(methods)} wrapper functions and {len(c_methods)} C ABI functions in {output_dir} "
-        f"using {flat_header}"
+        f"Generated helper and C ABI sources for {len(methods)} wrapper functions "
+        f"and {len(model.get('methods', []))} C ABI functions in {output_dir}"
     )
 
 
-def game_server_item_optional_fields(steam_include: Path) -> str:
-    matchmaking_types = steam_include / "steam" / "matchmakingtypes.h"
-    header_text = matchmaking_types.read_text(encoding="utf-8", errors="replace")
-    if "m_nCurrentFriendCount" not in header_text:
+def game_server_item_optional_fields(enabled: bool) -> str:
+    if not enabled:
         return ""
     return "\n".join(
         [
@@ -194,17 +160,8 @@ def game_server_item_optional_fields(steam_include: Path) -> str:
     )
 
 
-def has_server_friends(steam_include: Path) -> bool:
-    matchmaking = steam_include / "steam" / "isteammatchmaking.h"
-    header_text = matchmaking.read_text(encoding="utf-8", errors="replace")
-    return (
-        "class ISteamMatchmakingServerFriendsResponse" in header_text
-        and "ServerFriends( uint32 unIP, uint16 usPort" in header_text
-    )
-
-
-def matchmaking_server_friends_declarations(steam_include: Path) -> str:
-    if not has_server_friends(steam_include):
+def matchmaking_server_friends_declarations(enabled: bool) -> str:
+    if not enabled:
         return ""
     return "\n".join(
         [
@@ -219,8 +176,8 @@ def matchmaking_server_friends_declarations(steam_include: Path) -> str:
     )
 
 
-def matchmaking_server_friends_helpers(steam_include: Path) -> str:
-    if not has_server_friends(steam_include):
+def matchmaking_server_friends_helpers(enabled: bool) -> str:
+    if not enabled:
         return ""
     return r'''
 class MatchmakingServerFriendsResponse : public ISteamMatchmakingServerFriendsResponse
@@ -316,8 +273,8 @@ MatchmakingServerFriendsResponse g_matchmakingServerFriendsResponse;
 '''.strip()
 
 
-def matchmaking_server_friends_definitions(steam_include: Path) -> str:
-    if not has_server_friends(steam_include):
+def matchmaking_server_friends_definitions(enabled: bool) -> str:
+    if not enabled:
         return ""
     return r'''
 HServerQuery Steam_MatchmakingServers_ServerFriends( uint32 ip, uint16 port )
@@ -357,16 +314,14 @@ void Steam_MatchmakingServers_ClearServerFriendsResult()
 '''.strip()
 
 
-def matchmaking_server_friends_clear(steam_include: Path) -> str:
-    if not has_server_friends(steam_include):
+def matchmaking_server_friends_clear(enabled: bool) -> str:
+    if not enabled:
         return ""
     return "g_matchmakingServerFriendsResponse.Clear();"
 
 
-def connection_realtime_optional_fields(steam_include: Path) -> str:
-    networking_types = steam_include / "steam" / "steamnetworkingtypes.h"
-    header_text = networking_types.read_text(encoding="utf-8", errors="replace")
-    if "m_usecMaxJitter" not in header_text:
+def connection_realtime_optional_fields(enabled: bool) -> str:
+    if not enabled:
         return ""
     return (
         '\tserialized += "\\tmax_jitter_usec=" '
@@ -376,19 +331,11 @@ def connection_realtime_optional_fields(steam_include: Path) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--api-json", default="sdk/public/steam/steam_api.json")
-    parser.add_argument("--steam-include")
+    parser.add_argument("--model", default=str(DEFAULT_MODEL))
     parser.add_argument("--output-dir", default="generated")
     args = parser.parse_args()
 
-    api_json = Path(args.api_json)
-    steam_include = (
-        Path(args.steam_include)
-        if args.steam_include
-        else api_json.parent.parent
-    )
-    api = load_json(api_json)
-    generate(api, Path(args.output_dir), steam_include)
+    generate(load_json(Path(args.model)), Path(args.output_dir))
     return 0
 
 

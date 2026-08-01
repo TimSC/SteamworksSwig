@@ -173,11 +173,22 @@ def main() -> int:
     run(
         [
             sys.executable,
-            str(ROOT / "tools" / "generate_core.py"),
+            str(ROOT / "tools" / "generate_model.py"),
             "--api-json",
             str(api_json),
             "--steam-include",
             str(steam_include),
+            "--output",
+            str(GENERATED_DIR / "steamworks_c_api_model.json"),
+        ],
+        cwd=ROOT,
+    )
+    run(
+        [
+            sys.executable,
+            str(ROOT / "tools" / "generate_core.py"),
+            "--model",
+            str(GENERATED_DIR / "steamworks_c_api_model.json"),
             "--output-dir",
             str(GENERATED_DIR),
         ],

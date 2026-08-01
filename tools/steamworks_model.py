@@ -273,10 +273,18 @@ def method_params(method: dict) -> list[dict]:
     return method.get("params", [])
 
 
-def c_api_model(api: dict, c_methods: list[dict], skipped_methods: list[dict]) -> dict:
+def c_api_model(
+    api: dict,
+    c_methods: list[dict],
+    skipped_methods: list[dict],
+    *,
+    generated_wrappers: list[dict] | None = None,
+    output_helpers: list[dict] | None = None,
+    template_features: dict | None = None,
+) -> dict:
     sdk_methods = [method for method in c_methods if method.get("source") == "sdk"]
     return {
-        "schema_version": 4,
+        "schema_version": 5,
         "summary": {
             "sdk_methods_total": sum(
                 len(interface.get("methods", []))
@@ -289,6 +297,9 @@ def c_api_model(api: dict, c_methods: list[dict], skipped_methods: list[dict]) -
             "helper_functions": sum(1 for method in c_methods if method.get("source") == "helper"),
             "manual_dispatch_functions": sum(1 for method in c_methods if method.get("source") == "manual_dispatch"),
         },
+        "generated_wrappers": generated_wrappers or [],
+        "output_helpers": output_helpers or [],
+        "template_features": template_features or {},
         "methods": [
             {
                 "raw_c_name": method["raw_c_name"],
