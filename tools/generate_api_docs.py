@@ -40,10 +40,12 @@ def generate(model: dict) -> str:
     helper_by_interface: Counter[str] = Counter()
     skipped_reasons: Counter[str] = Counter()
     by_source: Counter[str] = Counter()
+    language_support: Counter[str] = Counter()
 
     for method in methods:
         source = method.get("source", "sdk")
         by_source[source] += 1
+        language_support[method.get("language_support") or "unknown"] += 1
         interface = method.get("interface") or "Global/static"
         if source == "sdk":
             supported_by_interface[interface] += 1
@@ -82,6 +84,18 @@ def generate(model: dict) -> str:
     ]
     for source, count in sorted(by_source.items(), key=lambda item: source_label(item[0])):
         lines.append(f"| {source_label(source)} | {count} |")
+
+    lines.extend(
+        [
+            "",
+            "## Language Support Buckets",
+            "",
+            "| Bucket | Functions |",
+            "| --- | ---: |",
+        ]
+    )
+    for bucket, count in sorted(language_support.items()):
+        lines.append(f"| `{bucket}` | {count} |")
 
     lines.extend(
         [

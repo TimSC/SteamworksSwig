@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 from pathlib import Path
 
 from generate_c_abi import write_c_abi_files
@@ -19,7 +18,9 @@ from steamworks_model import (
     c_api_methods,
     c_api_model,
     classify_skipped_methods,
-    swig_safe_type,
+    declared_identifiers,
+    interface_accessor,
+    iter_wrappable_methods,
 )
 
 TEMPLATE_DIR = Path(__file__).with_name("templates")
@@ -663,167 +664,6 @@ MANUAL_DISPATCH_API_CALL_RESULTS = [
         ],
     },
 ]
-
-
-CPP_KEYWORDS = {
-    "alignas",
-    "alignof",
-    "and",
-    "and_eq",
-    "asm",
-    "auto",
-    "bitand",
-    "bitor",
-    "bool",
-    "break",
-    "case",
-    "catch",
-    "char",
-    "class",
-    "compl",
-    "const",
-    "constexpr",
-    "continue",
-    "decltype",
-    "default",
-    "delete",
-    "do",
-    "double",
-    "dynamic_cast",
-    "else",
-    "enum",
-    "explicit",
-    "export",
-    "extern",
-    "false",
-    "float",
-    "for",
-    "friend",
-    "goto",
-    "if",
-    "inline",
-    "int",
-    "long",
-    "mutable",
-    "namespace",
-    "new",
-    "noexcept",
-    "not",
-    "not_eq",
-    "nullptr",
-    "operator",
-    "or",
-    "or_eq",
-    "private",
-    "protected",
-    "public",
-    "register",
-    "reinterpret_cast",
-    "return",
-    "short",
-    "signed",
-    "sizeof",
-    "static",
-    "static_assert",
-    "static_cast",
-    "struct",
-    "switch",
-    "template",
-    "this",
-    "thread_local",
-    "throw",
-    "true",
-    "try",
-    "typedef",
-    "typeid",
-    "typename",
-    "union",
-    "unsigned",
-    "using",
-    "virtual",
-    "void",
-    "volatile",
-    "wchar_t",
-    "while",
-    "xor",
-    "xor_eq",
-}
-
-
-def safe_name(name: str, fallback: str) -> str:
-    name = name or fallback
-    if name in CPP_KEYWORDS:
-        return f"{name}_"
-    return name
-
-
-def flat_type(entry: dict, key: str) -> str | None:
-    value = entry.get(f"{key}_flat", entry.get(key))
-    if not value:
-        return None
-    return swig_safe_type(value)
-
-
-def wrapper_name(classname: str, methodname: str) -> str:
-    if classname.startswith("ISteam"):
-        classname = classname[len("ISteam") :]
-    return f"Steam_{classname}_{methodname}"
-
-
-def declared_identifiers(header_text: str) -> set[str]:
-    return set(re.findall(r"\b(?:SteamAPI|SteamGameServer)_[A-Za-z0-9_]+\b", header_text))
-
-
-def interface_accessor(interface: dict, flat_identifiers: set[str]) -> str | None:
-    for accessor in interface.get("accessors") or []:
-        versioned = accessor.get("name_flat")
-        if versioned and versioned in flat_identifiers:
-            return versioned
-
-        unversioned_name = accessor.get("name")
-        if unversioned_name:
-            unversioned = f"SteamAPI_{unversioned_name}"
-            if unversioned in flat_identifiers:
-                return unversioned
-    return None
-
-
-def iter_wrappable_methods(api: dict, flat_identifiers: set[str]):
-    for interface in api.get("interfaces", []):
-        accessor = interface_accessor(interface, flat_identifiers)
-        classname = interface.get("classname")
-        if not accessor or not classname:
-            continue
-
-        for method in interface.get("methods", []):
-            methodname = method.get("methodname")
-            flat_name = method.get("methodname_flat")
-            return_type = flat_type(method, "returntype")
-            if (
-                not methodname
-                or not flat_name
-                or flat_name not in flat_identifiers
-                or return_type is None
-            ):
-                continue
-
-            params = []
-            for index, param in enumerate(method.get("params", [])):
-                param_type = flat_type(param, "paramtype")
-                if param_type is None:
-                    break
-                param_name = safe_name(param.get("paramname", ""), f"arg{index}")
-                params.append((param_type, param_name))
-            else:
-                yield {
-                    "classname": classname,
-                    "accessor": accessor,
-                    "methodname": methodname,
-                    "flat_name": flat_name,
-                    "return_type": return_type,
-                    "params": params,
-                    "wrapper_name": wrapper_name(classname, methodname),
-                }
 
 
 def declaration(method: dict) -> str:

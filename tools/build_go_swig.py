@@ -4,66 +4,20 @@
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import platform
-import re
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+from generate_go import write_go_wrappers
 
 
 ROOT = Path(__file__).resolve().parents[1]
 GENERATED_DIR = ROOT / "generated"
 DEFAULT_OUTDIR = ROOT / "go" / "steamworks" / "raw"
 FRIENDLY_DIR = ROOT / "go" / "steamworks"
-
-INITIALISMS = {
-    "API",
-    "DLC",
-    "HTML",
-    "HTTP",
-    "IP",
-    "UGC",
-    "URL",
-    "VR",
-}
-
-HAND_WRITTEN_METHODS = {
-    "Apps": {"IsSubscribed"},
-    "Friends": {"PersonaName"},
-    "User": {"LoggedOn", "SteamID"},
-    "Utils": {"AppID"},
-}
-
-GO_KEYWORDS = {
-    "break",
-    "default",
-    "func",
-    "interface",
-    "select",
-    "case",
-    "defer",
-    "go",
-    "map",
-    "struct",
-    "chan",
-    "else",
-    "goto",
-    "package",
-    "switch",
-    "const",
-    "fallthrough",
-    "if",
-    "range",
-    "type",
-    "continue",
-    "for",
-    "import",
-    "return",
-    "var",
-}
 
 
 def resolve_sdk_dir(value: str | None) -> Path:
@@ -159,177 +113,6 @@ def copy_generated_sources(outdir: Path) -> None:
         shutil.copy2(GENERATED_DIR / filename, outdir / filename)
 
 
-def split_camel(value: str) -> list[str]:
-    return re.findall(r"[A-Z]+(?=[A-Z][a-z]|$)|[A-Z]?[a-z]+|\d+", value)
-
-
-def go_identifier(value: str) -> str:
-    if value.startswith("P2P"):
-        return "P2P" + go_identifier(value[len("P2P"):])
-    words = split_camel(value)
-    if not words:
-        return value
-    converted = []
-    for word in words:
-        upper = word.upper()
-        if upper in INITIALISMS:
-            converted.append(upper)
-        else:
-            converted.append(word[:1].upper() + word[1:])
-    return "".join(converted)
-
-
-def receiver_type_name(interface_name: str) -> str:
-    return interface_name[:1].lower() + interface_name[1:] + "API"
-
-
-def wrapper_method_name(raw_method_name: str) -> str:
-    if (
-        raw_method_name.startswith("B")
-        and len(raw_method_name) > 1
-        and raw_method_name[1].isupper()
-    ):
-        raw_method_name = raw_method_name[1:]
-    return go_identifier(raw_method_name)
-
-
-def parse_go_args(args: str) -> list[str]:
-    args = args.strip()
-    if not args:
-        return []
-    names = []
-    for item in args.split(","):
-        name = item.strip().split(" ", 1)[0]
-        if name:
-            names.append(name)
-    return names
-
-
-def go_type(c_type: str) -> str:
-    return {
-        "bool": "bool",
-        "char": "byte",
-        "const char *": "string",
-        "double": "float64",
-        "float": "float32",
-        "int8_t": "int8",
-        "uint8_t": "byte",
-        "int16_t": "int16",
-        "uint16_t": "uint16",
-        "int32_t": "int",
-        "uint32_t": "uint",
-        "int64_t": "int64",
-        "uint64_t": "uint64",
-        "SWS_String": "raw.SWS_String",
-    }[c_type]
-
-
-def go_param_name(name: str) -> str:
-    if name in GO_KEYWORDS:
-        return name + "Value"
-    return name
-
-
-def go_args(params: list[dict]) -> str:
-    return ", ".join(
-        f'{go_param_name(param["name"])} {go_type(param["c_type"])}'
-        for param in params
-    )
-
-
-def go_arg_names(params: list[dict]) -> str:
-    return ", ".join(go_param_name(param["name"]) for param in params)
-
-
-def write_friendly_generated_wrappers(model_path: Path) -> None:
-    model = json.loads(model_path.read_text(encoding="utf-8"))
-    interfaces: dict[str, list[dict[str, str | list[str] | None]]] = {}
-    callback_methods = []
-    candidates = []
-    for method in model["methods"]:
-        c_name = method["c_name"]
-        if c_name.startswith("SWS_Steam_ManualDispatch_CallbackID"):
-            callback_name = c_name.removeprefix("SWS_Steam_ManualDispatch_CallbackID")
-            callback_methods.append((go_identifier(callback_name), c_name))
-            continue
-
-        classname = method.get("classname")
-        raw_method_name = method.get("methodname")
-        if not classname or not raw_method_name or not classname.startswith("ISteam"):
-            continue
-
-        receiver = go_identifier(classname.removeprefix("ISteam"))
-        method_name = wrapper_method_name(raw_method_name)
-        if method_name in HAND_WRITTEN_METHODS.get(receiver, set()):
-            continue
-        c_method_suffix = c_name.removeprefix(f"SWS_SteamAPI_{classname}_")
-        candidates.append((receiver, method_name, c_method_suffix, method))
-
-    method_name_counts: dict[tuple[str, str], int] = {}
-    for receiver, method_name, _, _ in candidates:
-        key = (receiver, method_name)
-        method_name_counts[key] = method_name_counts.get(key, 0) + 1
-
-    for receiver, method_name, c_method_suffix, method in candidates:
-        if method_name_counts[(receiver, method_name)] > 1:
-            method_name = wrapper_method_name(c_method_suffix)
-        return_type = method["c_return_type"]
-        interfaces.setdefault(receiver, []).append(
-            {
-                "raw_name": method["c_name"],
-                "method_name": method_name,
-                "args": go_args(method["params"]),
-                "arg_names": go_arg_names(method["params"]),
-                "return_type": None if return_type == "void" else go_type(return_type),
-            }
-        )
-
-    lines = [
-        "package steamworks",
-        "",
-        "// Code generated by tools/build_go_swig.py; DO NOT EDIT.",
-        "",
-        'import "github.com/TimSC/SteamworksSwig/go/steamworks/raw"',
-        "",
-    ]
-    for receiver in sorted(interfaces):
-        receiver_type = receiver_type_name(receiver)
-        if receiver not in HAND_WRITTEN_METHODS:
-            lines.extend(
-                [
-                    f"type {receiver_type} struct{{}}",
-                    "",
-                    f"var {receiver} {receiver_type}",
-                    "",
-                ]
-            )
-        for method in sorted(interfaces[receiver], key=lambda item: str(item["method_name"])):
-            args = method["args"]
-            return_type = method["return_type"]
-            arg_names = str(method["arg_names"])
-            raw_call = f'raw.{method["raw_name"]}({arg_names})'
-            signature_return = f" {return_type}" if return_type else ""
-            lines.append(f'func ({receiver_type}) {method["method_name"]}({args}){signature_return} {{')
-            if return_type:
-                lines.append(f"\treturn {raw_call}")
-            else:
-                lines.append(f"\t{raw_call}")
-            lines.extend(["}", ""])
-
-    for callback_name, raw_name in sorted(callback_methods):
-        lines.extend(
-            [
-                f"func CallbackID{callback_name}() CallbackID {{",
-                f"\treturn CallbackID(raw.{raw_name}())",
-                "}",
-                "",
-            ]
-        )
-
-    FRIENDLY_DIR.mkdir(parents=True, exist_ok=True)
-    (FRIENDLY_DIR / "generated.go").write_text("\n".join(lines), encoding="utf-8")
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Generate an experimental Go SWIG package from the C ABI layer."
@@ -382,7 +165,10 @@ def main() -> int:
         ],
         cwd=ROOT,
     )
-    write_friendly_generated_wrappers(GENERATED_DIR / "steamworks_c_api_model.json")
+    write_go_wrappers(
+        GENERATED_DIR / "steamworks_c_api_model.json",
+        FRIENDLY_DIR / "generated.go",
+    )
 
     if not args.skip_build:
         env = os.environ.copy()

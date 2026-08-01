@@ -52,7 +52,7 @@ def method_candidates(model: dict) -> list[tuple[str, str, str, dict]]:
         if not interface or not c_name:
             continue
         if method.get("source") == "sdk":
-            method_name = method.get("methodname")
+            method_name = method.get("friendly_name") or method.get("methodname")
             if not method_name:
                 continue
             grouped_name = python_snake_name(method_name)
