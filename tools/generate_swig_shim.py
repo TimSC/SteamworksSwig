@@ -797,6 +797,23 @@ def swig_safe_type(type_name: str) -> str | None:
     return type_name
 
 
+def unsupported_type_reason(type_name: str) -> str:
+    type_name = normalize_type(type_name)
+    if not type_name:
+        return "missing_type"
+    if "(" in type_name or ")" in type_name:
+        return "function_pointer"
+    if "[" in type_name or "]" in type_name:
+        return "array_type"
+    if "&" in type_name:
+        return "reference_type"
+    if type_name.startswith("ISteam"):
+        return "interface_pointer"
+    if "*" in type_name and type_name not in SUPPORTED_POINTER_TYPES:
+        return "pointer_output_or_unsupported_pointer"
+    return "unsupported_c_type"
+
+
 def safe_name(name: str, fallback: str) -> str:
     name = name or fallback
     if name in CPP_KEYWORDS:
@@ -815,6 +832,58 @@ def wrapper_name(classname: str, methodname: str) -> str:
     if classname.startswith("ISteam"):
         classname = classname[len("ISteam") :]
     return f"Steam_{classname}_{methodname}"
+
+
+def interface_name(classname: str | None) -> str | None:
+    if not classname:
+        return None
+    if classname.startswith("ISteam"):
+        return classname[len("ISteam") :]
+    return classname
+
+
+def infer_interface_from_wrapper(name: str) -> str:
+    if name.startswith("Steam_GameServerNetworkingSockets_"):
+        return "GameServerNetworkingSockets"
+    if name.startswith("Steam_GameServerNetworkingMessages_"):
+        return "GameServerNetworkingMessages"
+    if name.startswith("Steam_GameServerHTTP_"):
+        return "GameServerHTTP"
+    if name.startswith("Steam_GameServer_"):
+        return "GameServer"
+    if name.startswith("Steam_ManualDispatch_"):
+        return "ManualDispatch"
+    if name.startswith("Steam_Lobby_"):
+        return "Lobby"
+    if name.startswith("Steam_NetworkingSend_") or name.startswith("Steam_NetConnectionEnd_"):
+        return "NetworkingConstants"
+    if name.startswith("Steam_NetworkingConnectionState_"):
+        return "NetworkingConstants"
+    if name.startswith("Steam_"):
+        remainder = name[len("Steam_") :]
+        if remainder in {
+            "Init",
+            "InitEx",
+            "InitFlat",
+            "Shutdown",
+            "ClearHelperState",
+            "RunCallbacks",
+            "IsSteamRunning",
+            "RestartAppIfNecessary",
+            "ReleaseCurrentThreadMemory",
+            "GetSteamInstallPath",
+            "SetTryCatchCallbacks",
+            "SetMiniDumpComment",
+            "GetHSteamPipe",
+            "GetHSteamUser",
+            "GetLastInitResult",
+            "GetLastInitError",
+        }:
+            return "Global/static"
+        if remainder.startswith("CallbackDispatchMode") or remainder.startswith("ServerMode"):
+            return "Global/static"
+        return remainder.split("_", 1)[0]
+    return "Global/static"
 
 
 def declared_identifiers(header_text: str) -> set[str]:
@@ -871,6 +940,99 @@ def iter_wrappable_methods(api: dict, flat_identifiers: set[str]):
                     "params": params,
                     "wrapper_name": wrapper_name(classname, methodname),
                 }
+
+
+def sdk_method_key(classname: str | None, flat_name: str | None, methodname: str | None) -> tuple[str | None, str | None, str | None]:
+    return classname, flat_name, methodname
+
+
+def classify_skipped_methods(
+    api: dict,
+    flat_identifiers: set[str],
+    c_methods: list[dict],
+) -> list[dict]:
+    typedefs = api_typedef_map(api)
+    enums = api_enum_names(api)
+    supported = {
+        sdk_method_key(method.get("classname"), method.get("flat_name"), method.get("methodname"))
+        for method in c_methods
+        if method.get("source") == "sdk"
+    }
+    skipped = []
+
+    for interface in api.get("interfaces", []):
+        classname = interface.get("classname")
+        accessor = interface_accessor(interface, flat_identifiers)
+        for method in interface.get("methods", []):
+            methodname = method.get("methodname")
+            flat_name = method.get("methodname_flat")
+            key = sdk_method_key(classname, flat_name, methodname)
+            if key in supported:
+                continue
+
+            reason = None
+            detail = ""
+            if not classname or not methodname:
+                reason = "invalid_metadata"
+            elif not accessor:
+                reason = "no_flat_accessor"
+            elif not flat_name:
+                reason = "no_flat_method_name"
+            elif flat_name not in flat_identifiers:
+                reason = "flat_symbol_missing"
+
+            return_type = method.get("returntype_flat", method.get("returntype", ""))
+            params = method.get("params", [])
+            if reason is None:
+                safe_return = swig_safe_type(return_type)
+                if safe_return is None:
+                    reason = unsupported_type_reason(return_type)
+                    detail = f"return {normalize_type(return_type)}"
+                elif resolve_c_type(safe_return, typedefs, enums) is None:
+                    reason = "unsupported_c_type"
+                    detail = f"return {safe_return}"
+
+            if reason is None:
+                for index, param in enumerate(params):
+                    param_type = param.get("paramtype_flat", param.get("paramtype", ""))
+                    safe_param = swig_safe_type(param_type)
+                    param_name = param.get("paramname") or f"arg{index}"
+                    if safe_param is None:
+                        reason = unsupported_type_reason(param_type)
+                        detail = f"{param_name}: {normalize_type(param_type)}"
+                        break
+                    if resolve_c_type(safe_param, typedefs, enums) is None:
+                        reason = "unsupported_c_type"
+                        detail = f"{param_name}: {safe_param}"
+                        break
+
+            skipped.append(
+                {
+                    "interface": interface_name(classname),
+                    "classname": classname,
+                    "methodname": methodname,
+                    "flat_name": flat_name,
+                    "return_type": normalize_type(return_type),
+                    "params": [
+                        {
+                            "name": param.get("paramname") or f"arg{index}",
+                            "type": normalize_type(param.get("paramtype_flat", param.get("paramtype", ""))),
+                        }
+                        for index, param in enumerate(params)
+                    ],
+                    "reason": reason or "unknown",
+                    "detail": detail,
+                }
+            )
+
+    return sorted(
+        skipped,
+        key=lambda item: (
+            str(item.get("interface") or ""),
+            str(item.get("methodname") or ""),
+            str(item.get("flat_name") or ""),
+        ),
+    )
 
 
 def declaration(method: dict) -> str:
@@ -990,7 +1152,13 @@ def c_wrapper_name(method: dict) -> str:
     return f'SWS_{method.get("flat_name", method["wrapper_name"])}'
 
 
-def c_method(method: dict, typedefs: dict[str, str], enums: set[str]) -> dict | None:
+def c_method(
+    method: dict,
+    typedefs: dict[str, str],
+    enums: set[str],
+    *,
+    source: str = "sdk",
+) -> dict | None:
     return_type = method["return_type"]
     c_return_type = resolve_c_type(return_type, typedefs, enums)
     if c_return_type is None:
@@ -1017,18 +1185,30 @@ def c_method(method: dict, typedefs: dict[str, str], enums: set[str]) -> dict | 
         "classname": method.get("classname"),
         "methodname": method.get("methodname"),
         "flat_name": method.get("flat_name"),
+        "interface": interface_name(method.get("classname")),
+        "source": source,
         "params": params,
     }
 
 
-def c_manual_method(item: tuple, typedefs: dict[str, str], enums: set[str]) -> dict | None:
+def c_manual_method(
+    item: tuple,
+    typedefs: dict[str, str],
+    enums: set[str],
+    *,
+    source: str,
+) -> dict | None:
     return_type, name, params = item
     method = {
         "wrapper_name": name,
         "return_type": normalize_type(return_type),
         "params": [(normalize_type(param_type), param_name) for param_type, param_name in params],
     }
-    return c_method(method, typedefs, enums)
+    result = c_method(method, typedefs, enums, source=source)
+    if result is not None:
+        result["interface"] = infer_interface_from_wrapper(name)
+        result["methodname"] = name.removeprefix(f"Steam_{result['interface']}_")
+    return result
 
 
 def c_signature(method: dict) -> str:
@@ -1084,29 +1264,54 @@ def c_api_methods(api: dict, methods: list[dict]) -> list[dict]:
     )
     manual = [
         method
-        for item in C_MANUAL_FUNCTIONS + C_HELPER_FUNCTIONS + dispatch_items
-        if (method := c_manual_method(item, typedefs, enums)) is not None
+        for item in C_MANUAL_FUNCTIONS
+        if (method := c_manual_method(item, typedefs, enums, source="manual")) is not None
+    ]
+    helpers = [
+        method
+        for item in C_HELPER_FUNCTIONS
+        if (method := c_manual_method(item, typedefs, enums, source="helper")) is not None
+    ]
+    manual_dispatch = [
+        method
+        for item in dispatch_items
+        if (method := c_manual_method(item, typedefs, enums, source="manual_dispatch")) is not None
     ]
     generated = [
         method
         for item in methods
-        if (method := c_method(item, typedefs, enums)) is not None
+        if (method := c_method(item, typedefs, enums, source="sdk")) is not None
     ]
-    return sorted(manual + generated, key=lambda item: item["c_name"])
+    return sorted(manual + helpers + manual_dispatch + generated, key=lambda item: item["c_name"])
 
 
-def c_api_model(c_methods: list[dict]) -> dict:
+def c_api_model(api: dict, c_methods: list[dict], skipped_methods: list[dict]) -> dict:
+    sdk_methods = [method for method in c_methods if method.get("source") == "sdk"]
     return {
-        "schema_version": 1,
+        "schema_version": 2,
+        "summary": {
+            "sdk_methods_total": sum(
+                len(interface.get("methods", []))
+                for interface in api.get("interfaces", [])
+            ),
+            "sdk_methods_supported": len(sdk_methods),
+            "sdk_methods_skipped": len(skipped_methods),
+            "c_abi_functions_total": len(c_methods),
+            "manual_functions": sum(1 for method in c_methods if method.get("source") == "manual"),
+            "helper_functions": sum(1 for method in c_methods if method.get("source") == "helper"),
+            "manual_dispatch_functions": sum(1 for method in c_methods if method.get("source") == "manual_dispatch"),
+        },
         "methods": [
             {
                 "c_name": method["c_name"],
                 "c_return_type": method["c_return_type"],
                 "cpp_name": method["cpp_name"],
                 "cpp_return_type": method["cpp_return_type"],
+                "interface": method.get("interface"),
                 "classname": method.get("classname"),
                 "methodname": method.get("methodname"),
                 "flat_name": method.get("flat_name"),
+                "source": method.get("source", "sdk"),
                 "params": [
                     {
                         "name": param["name"],
@@ -1118,6 +1323,7 @@ def c_api_model(c_methods: list[dict]) -> dict:
             }
             for method in c_methods
         ],
+        "skipped_methods": skipped_methods,
     }
 
 
@@ -1306,6 +1512,7 @@ def generate(api: dict, output_dir: Path, steam_include: Path) -> None:
     c_declarations = "\n".join(c_declaration(method) for method in c_methods)
     c_definitions = "\n\n".join(c_definition(method) for method in c_methods)
     c_python_renames = python_swig_renames(c_methods)
+    skipped_methods = classify_skipped_methods(api, flat_identifiers, c_methods)
 
     header.write_text(
         render_template(
@@ -1378,7 +1585,7 @@ def generate(api: dict, output_dir: Path, steam_include: Path) -> None:
     )
 
     c_model.write_text(
-        json.dumps(c_api_model(c_methods), indent=2, sort_keys=True) + "\n",
+        json.dumps(c_api_model(api, c_methods, skipped_methods), indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
 

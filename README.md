@@ -211,8 +211,9 @@ The generator emits `generated/steamworks_c_api.h`,
 `generated/steamworks_c_api.cpp`, and `generated/steamworks_c_api_model.json`
 as the primary language-neutral ABI foundation. Python and Go both bind through
 this layer. The public header avoids Steam C++ types and STL containers;
-generated functions use fixed-width C types, `bool`, `const char *`, and
-`SWS_String` for owned string results.
+generated functions use fixed-width C types, `bool`, `const char *`,
+`SWS_String` for owned string results, `SWS_StringList` for owned string-list
+results, and `SWS_Bytes` / `SWS_BytesList` for binary payload helpers.
 
 Automatically generated C ABI functions are named after Valve's unique flat API
 symbols with an `SWS_` prefix, for example
@@ -220,66 +221,27 @@ symbols with an `SWS_` prefix, for example
 existing shim names with the same prefix, for example `SWS_Steam_Init()`.
 
 This layer currently covers scalar/string-safe JSON methods plus core init,
-game-server, lobby, manual-dispatch, callback cleanup, and selected async helper
-APIs. Pointer buffers, callback function pointers, and vector results still need
-explicit C-safe adapters.
+game-server, lobby, manual-dispatch, callback cleanup, byte-buffer helpers,
+string/vector helpers, and selected async helper APIs. Pointer output buffers,
+callback function pointers, C++ reference types, interface pointers, and
+unsupported SDK structs still need explicit C-safe adapters.
 
 ## API Coverage
 
 Coverage is measured against the interface methods listed in
-`sdk/public/steam/steam_api.json`. The wrapper currently generates methods when
-the flat API has a matching accessor and the signature can be represented safely
-with Python scalar/string types. Methods that require output structs, pointer
-buffers, callbacks, or interface pointers usually need explicit shim code.
+`sdk/public/steam/steam_api.json`. The generated model records supported
+methods plus skipped methods and reasons, such as pointer output buffers,
+interface pointers, callback function pointers, and unsupported SDK structs.
 
-Current generated interface coverage is **624 of 921 SDK method overloads, or
-67.8%**. These methods are emitted through the C ABI and exposed to Python with
-legacy `Steam_*` names for compatibility.
+Run this after changing the SDK or generator:
 
-The generated module currently exposes the scalar/string-safe C ABI surface plus
-hand-written C-safe helper functions for initialization, manual dispatch,
-game-server initialization, lobby list async calls, callback cleanup, and friend
-game/server state. Helpers that return byte buffers or vectors need explicit C
-ABI adapters before they can be exposed through the C ABI-first Python binding.
+```bash
+python3 tools/generate_api_docs.py
+```
 
-| Steamworks group | JSON SDK methods | JSON wrapped | JSON coverage | JSON Python funcs | Static/helper funcs | Total Python funcs |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| `Global/static` | - | - | - | 0 | 31 | 31 |
-| `Apps` | 35 | 26 | 74.3% | 26 | 0 | 26 |
-| `Client` | 33 | 0 | 0.0% | 0 | 0 | 0 |
-| `Controller` | 34 | 29 | 85.3% | 29 | 0 | 29 |
-| `Friends` | 78 | 72 | 92.3% | 72 | 13 | 85 |
-| `GameServer` | 41 | 36 | 87.8% | 36 | 16 | 52 |
-| `GameServerStats` | 10 | 7 | 70.0% | 6 | 0 | 6 |
-| `HTMLSurface` | 37 | 30 | 81.1% | 30 | 0 | 30 |
-| `HTTP` | 25 | 15 | 60.0% | 15 | 0 | 15 |
-| `Input` | 48 | 42 | 87.5% | 42 | 0 | 42 |
-| `Inventory` | 38 | 15 | 39.5% | 12 | 0 | 12 |
-| `Matchmaking` | 38 | 33 | 86.8% | 33 | 27 | 60 |
-| `MatchmakingPingResponse` | 2 | 0 | 0.0% | 0 | 0 | 0 |
-| `MatchmakingPlayersResponse` | 3 | 0 | 0.0% | 0 | 0 | 0 |
-| `MatchmakingRulesResponse` | 3 | 0 | 0.0% | 0 | 0 | 0 |
-| `MatchmakingServerFriendsResponse` | 3 | 0 | 0.0% | 0 | 0 | 0 |
-| `MatchmakingServerListResponse` | 3 | 0 | 0.0% | 0 | 0 | 0 |
-| `MatchmakingServers` | 18 | 7 | 38.9% | 7 | 14 | 21 |
-| `Music` | 9 | 9 | 100.0% | 9 | 0 | 9 |
-| `Networking` | 22 | 11 | 50.0% | 11 | 0 | 11 |
-| `NetworkingFakeUDPPort` | 4 | 0 | 0.0% | 0 | 0 | 0 |
-| `NetworkingMessages` | 6 | 0 | 0.0% | 0 | 0 | 0 |
-| `NetworkingSockets` | 47 | 15 | 31.9% | 15 | 42 | 57 |
-| `NetworkingUtils` | 41 | 21 | 51.2% | 21 | 0 | 21 |
-| `ParentalSettings` | 6 | 6 | 100.0% | 6 | 0 | 6 |
-| `Parties` | 12 | 7 | 58.3% | 7 | 0 | 7 |
-| `RemotePlay` | 20 | 17 | 85.0% | 17 | 0 | 17 |
-| `RemoteStorage` | 59 | 43 | 72.9% | 43 | 0 | 43 |
-| `Screenshots` | 9 | 8 | 88.9% | 8 | 0 | 8 |
-| `Timeline` | 18 | 18 | 100.0% | 18 | 0 | 18 |
-| `UGC` | 99 | 74 | 74.7% | 73 | 0 | 73 |
-| `User` | 33 | 24 | 72.7% | 24 | 0 | 24 |
-| `UserStats` | 44 | 24 | 54.5% | 23 | 0 | 23 |
-| `Utils` | 39 | 33 | 84.6% | 33 | 0 | 33 |
-| `Video` | 4 | 2 | 50.0% | 2 | 0 | 2 |
-| **Total** | **921** | **624** | **67.8%** | **618** | **143** | **761** |
+See [docs/API_COVERAGE.md](docs/API_COVERAGE.md) for current counts by
+interface, C ABI function source, skipped reason, and representative skipped
+methods.
 
 ## SpaceWar Server, Lobby, And Networking
 
