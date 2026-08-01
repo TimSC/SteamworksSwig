@@ -22,7 +22,28 @@ typedef struct SWS_String
 	size_t size;
 } SWS_String;
 
+typedef struct SWS_StringList
+{
+	SWS_String *items;
+	size_t size;
+} SWS_StringList;
+
+typedef struct SWS_Bytes
+{
+	const uint8_t *data;
+	size_t size;
+} SWS_Bytes;
+
+typedef struct SWS_BytesList
+{
+	SWS_Bytes *items;
+	size_t size;
+} SWS_BytesList;
+
 SWS_API void SWS_FreeString( SWS_String value );
+SWS_API void SWS_FreeStringList( SWS_StringList value );
+SWS_API void SWS_FreeBytes( SWS_Bytes value );
+SWS_API void SWS_FreeBytesList( SWS_BytesList value );
 
 {{ c_declarations }}
 

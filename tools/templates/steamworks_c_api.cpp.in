@@ -4,7 +4,9 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <exception>
 #include <string>
+#include <vector>
 
 namespace
 {
@@ -22,11 +24,100 @@ SWS_String CopyStringForC( const std::string &value )
 	result.size = value.size();
 	return result;
 }
+
+SWS_StringList CopyStringListForC( const std::vector<std::string> &values )
+{
+	SWS_StringList result = {};
+	if ( values.empty() )
+	{
+		return result;
+	}
+
+	SWS_String *items = static_cast<SWS_String *>( std::calloc( values.size(), sizeof( SWS_String ) ) );
+	if ( !items )
+	{
+		return result;
+	}
+	for ( size_t index = 0; index < values.size(); ++index )
+	{
+		items[index] = CopyStringForC( values[index] );
+	}
+	result.items = items;
+	result.size = values.size();
+	return result;
+}
+
+SWS_Bytes CopyBytesForC( const std::string &value )
+{
+	SWS_Bytes result = {};
+	uint8_t *data = static_cast<uint8_t *>( std::malloc( value.size() ) );
+	if ( !data && !value.empty() )
+	{
+		return result;
+	}
+	if ( !value.empty() )
+	{
+		std::memcpy( data, value.data(), value.size() );
+	}
+	result.data = data;
+	result.size = value.size();
+	return result;
+}
+
+SWS_BytesList CopyBytesListForC( const std::vector<std::string> &values )
+{
+	SWS_BytesList result = {};
+	if ( values.empty() )
+	{
+		return result;
+	}
+
+	SWS_Bytes *items = static_cast<SWS_Bytes *>( std::calloc( values.size(), sizeof( SWS_Bytes ) ) );
+	if ( !items )
+	{
+		return result;
+	}
+	for ( size_t index = 0; index < values.size(); ++index )
+	{
+		items[index] = CopyBytesForC( values[index] );
+	}
+	result.items = items;
+	result.size = values.size();
+	return result;
+}
+
+const char *EmptyCString()
+{
+	return "";
+}
 }
 
 void SWS_FreeString( SWS_String value )
 {
 	std::free( const_cast<char *>( value.data ) );
+}
+
+void SWS_FreeStringList( SWS_StringList value )
+{
+	for ( size_t index = 0; index < value.size; ++index )
+	{
+		SWS_FreeString( value.items[index] );
+	}
+	std::free( value.items );
+}
+
+void SWS_FreeBytes( SWS_Bytes value )
+{
+	std::free( const_cast<uint8_t *>( value.data ) );
+}
+
+void SWS_FreeBytesList( SWS_BytesList value )
+{
+	for ( size_t index = 0; index < value.size; ++index )
+	{
+		SWS_FreeBytes( value.items[index] );
+	}
+	std::free( value.items );
 }
 
 {{ c_definitions }}

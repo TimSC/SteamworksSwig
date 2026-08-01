@@ -2113,6 +2113,76 @@ int Steam_FriendFlagAll()
 	return k_EFriendFlagAll;
 }
 
+int Steam_LobbyTypePrivate()
+{
+	return k_ELobbyTypePrivate;
+}
+
+int Steam_LobbyTypeFriendsOnly()
+{
+	return k_ELobbyTypeFriendsOnly;
+}
+
+int Steam_LobbyTypePublic()
+{
+	return k_ELobbyTypePublic;
+}
+
+int Steam_LobbyTypeInvisible()
+{
+	return k_ELobbyTypeInvisible;
+}
+
+int Steam_LobbyTypePrivateUnique()
+{
+	return k_ELobbyTypePrivateUnique;
+}
+
+int Steam_LobbyComparisonEqual()
+{
+	return k_ELobbyComparisonEqual;
+}
+
+int Steam_PersonaStateOffline()
+{
+	return k_EPersonaStateOffline;
+}
+
+int Steam_PersonaStateOnline()
+{
+	return k_EPersonaStateOnline;
+}
+
+int Steam_PersonaStateBusy()
+{
+	return k_EPersonaStateBusy;
+}
+
+int Steam_PersonaStateAway()
+{
+	return k_EPersonaStateAway;
+}
+
+int Steam_PersonaStateSnooze()
+{
+	return k_EPersonaStateSnooze;
+}
+
+int Steam_PersonaStateLookingToTrade()
+{
+	return k_EPersonaStateLookingToTrade;
+}
+
+int Steam_PersonaStateLookingToPlay()
+{
+	return k_EPersonaStateLookingToPlay;
+}
+
+int Steam_PersonaStateInvisible()
+{
+	return k_EPersonaStateInvisible;
+}
+
 int Steam_Friends_GetFriendCountImmediate()
 {
 	ISteamFriends *friends = SteamFriends();

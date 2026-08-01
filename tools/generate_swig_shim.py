@@ -49,7 +49,11 @@ C_TYPE_MAP = {
     "ulint64": "uint64_t",
     "uint64_steamid": "uint64_t",
     "uint64_gameid": "uint64_t",
+    "size_t": "size_t",
     "std::string": "SWS_String",
+    "std::vector<std::string>": "SWS_StringList",
+    "SteamworksBytes": "SWS_Bytes",
+    "SteamworksBytesVector": "SWS_BytesList",
 }
 
 C_MANUAL_FUNCTIONS = [
@@ -117,6 +121,147 @@ C_MANUAL_FUNCTIONS = [
     ("uint64_steamid", "Steam_Lobby_GetListLobbyByIndex", [("int", "index")]),
     ("std::string", "Steam_Lobby_GetListLobbyNameByIndex", [("int", "index")]),
     ("void", "Steam_Lobby_ClearAsyncState", []),
+]
+
+C_HELPER_FUNCTIONS = [
+    ("SteamworksBytes", "Steam_User_GetLastAuthSessionTicketBytes", []),
+    ("HAuthTicket", "Steam_User_GetAuthSessionTicketBytes", [("int", "maxTicketSize")]),
+    ("int", "Steam_User_BeginAuthSessionBytes", [("const char *", "data"), ("size_t", "dataSize"), ("uint64_steamid", "steamID")]),
+    ("SteamAPICall_t", "Steam_User_RequestEncryptedAppTicketBytes", [("const char *", "data"), ("size_t", "dataSize")]),
+    ("SteamworksBytes", "Steam_User_GetEncryptedAppTicketBytes", [("int", "maxTicketSize")]),
+    ("SteamworksBytes", "Steam_GameServer_GetLastAuthSessionTicketBytes", []),
+    ("HAuthTicket", "Steam_GameServer_GetAuthSessionTicketBytes", [("int", "maxTicketSize")]),
+    ("int", "Steam_GameServer_BeginAuthSessionBytes", [("const char *", "data"), ("size_t", "dataSize"), ("uint64_steamid", "steamID")]),
+    ("HSteamListenSocket", "Steam_NetworkingSockets_CreateListenSocketIPStringNoOptions", [("const char *", "address")]),
+    ("HSteamNetConnection", "Steam_NetworkingSockets_ConnectByIPAddressStringNoOptions", [("const char *", "address")]),
+    ("HSteamListenSocket", "Steam_NetworkingSockets_CreateListenSocketP2PNoOptions", [("int", "localVirtualPort")]),
+    ("HSteamNetConnection", "Steam_NetworkingSockets_ConnectP2PSteamIDNoOptions", [("uint64_steamid", "steamID"), ("int", "remoteVirtualPort")]),
+    ("void", "Steam_NetworkingSockets_EnableConnectionStatusCallbacks", []),
+    ("void", "Steam_NetworkingSockets_ClearConnectionStatusChangedEvents", []),
+    ("std::vector<std::string>", "Steam_NetworkingSockets_PollConnectionStatusChangedStrings", [("int", "maxEvents")]),
+    ("int", "Steam_NetworkingSockets_SendMessageToConnectionString", [("HSteamNetConnection", "connection"), ("const char *", "data"), ("int", "sendFlags")]),
+    ("int", "Steam_NetworkingSockets_SendMessageToConnectionBytes", [("HSteamNetConnection", "connection"), ("const char *", "data"), ("size_t", "dataSize"), ("int", "sendFlags")]),
+    ("std::vector<std::string>", "Steam_NetworkingSockets_ReceiveMessagesOnConnectionStrings", [("HSteamNetConnection", "connection"), ("int", "maxMessages")]),
+    ("SteamworksBytesVector", "Steam_NetworkingSockets_ReceiveMessagesOnConnectionBytes", [("HSteamNetConnection", "connection"), ("int", "maxMessages")]),
+    ("std::vector<std::string>", "Steam_NetworkingSockets_ReceiveMessagesOnPollGroupStrings", [("HSteamNetPollGroup", "pollGroup"), ("int", "maxMessages")]),
+    ("SteamworksBytesVector", "Steam_NetworkingSockets_ReceiveMessagesOnPollGroupBytes", [("HSteamNetPollGroup", "pollGroup"), ("int", "maxMessages")]),
+    ("std::string", "Steam_NetworkingSockets_GetConnectionNameString", [("HSteamNetConnection", "connection")]),
+    ("std::string", "Steam_NetworkingSockets_GetConnectionInfoString", [("HSteamNetConnection", "connection")]),
+    ("std::string", "Steam_NetworkingSockets_GetConnectionRealTimeStatusString", [("HSteamNetConnection", "connection")]),
+    ("std::string", "Steam_NetworkingSockets_GetDetailedConnectionStatusString", [("HSteamNetConnection", "connection")]),
+    ("std::string", "Steam_NetworkingSockets_GetListenSocketAddressString", [("HSteamListenSocket", "listenSocket")]),
+    ("std::string", "Steam_NetworkingSockets_GetIdentityString", []),
+    ("std::string", "Steam_NetworkingSockets_GetAuthenticationStatusString", []),
+    ("std::string", "Steam_NetworkingSockets_GetFakeIPString", [("int", "firstPortIndex")]),
+    ("HSteamListenSocket", "Steam_NetworkingSockets_CreateListenSocketP2PFakeIPNoOptions", [("int", "fakePortIndex")]),
+    ("std::string", "Steam_NetworkingSockets_GetRemoteFakeIPForConnectionString", [("HSteamNetConnection", "connection")]),
+    ("HSteamListenSocket", "Steam_GameServerNetworkingSockets_CreateListenSocketP2PNoOptions", [("int", "localVirtualPort")]),
+    ("HSteamNetPollGroup", "Steam_GameServerNetworkingSockets_CreatePollGroup", []),
+    ("bool", "Steam_GameServerNetworkingSockets_DestroyPollGroup", [("HSteamNetPollGroup", "pollGroup")]),
+    ("int", "Steam_GameServerNetworkingSockets_AcceptConnection", [("HSteamNetConnection", "connection")]),
+    ("bool", "Steam_GameServerNetworkingSockets_CloseConnection", [("HSteamNetConnection", "connection"), ("int", "reason"), ("const char *", "debugMessage"), ("bool", "enableLinger")]),
+    ("bool", "Steam_GameServerNetworkingSockets_CloseListenSocket", [("HSteamListenSocket", "listenSocket")]),
+    ("bool", "Steam_GameServerNetworkingSockets_SetConnectionPollGroup", [("HSteamNetConnection", "connection"), ("HSteamNetPollGroup", "pollGroup")]),
+    ("int", "Steam_GameServerNetworkingSockets_SendMessageToConnectionString", [("HSteamNetConnection", "connection"), ("const char *", "data"), ("int", "sendFlags")]),
+    ("int", "Steam_GameServerNetworkingSockets_SendMessageToConnectionBytes", [("HSteamNetConnection", "connection"), ("const char *", "data"), ("size_t", "dataSize"), ("int", "sendFlags")]),
+    ("std::vector<std::string>", "Steam_GameServerNetworkingSockets_ReceiveMessagesOnConnectionStrings", [("HSteamNetConnection", "connection"), ("int", "maxMessages")]),
+    ("SteamworksBytesVector", "Steam_GameServerNetworkingSockets_ReceiveMessagesOnConnectionBytes", [("HSteamNetConnection", "connection"), ("int", "maxMessages")]),
+    ("std::vector<std::string>", "Steam_GameServerNetworkingSockets_ReceiveMessagesOnPollGroupStrings", [("HSteamNetPollGroup", "pollGroup"), ("int", "maxMessages")]),
+    ("SteamworksBytesVector", "Steam_GameServerNetworkingSockets_ReceiveMessagesOnPollGroupBytes", [("HSteamNetPollGroup", "pollGroup"), ("int", "maxMessages")]),
+    ("int", "Steam_NetworkingMessages_SendMessageToSteamIDBytes", [("uint64_steamid", "steamID"), ("const char *", "data"), ("size_t", "dataSize"), ("int", "sendFlags"), ("int", "remoteChannel")]),
+    ("SteamworksBytesVector", "Steam_NetworkingMessages_ReceiveMessagesOnChannelBytes", [("int", "localChannel"), ("int", "maxMessages")]),
+    ("bool", "Steam_NetworkingMessages_AcceptSessionWithSteamID", [("uint64_steamid", "steamID")]),
+    ("bool", "Steam_NetworkingMessages_CloseSessionWithSteamID", [("uint64_steamid", "steamID")]),
+    ("bool", "Steam_NetworkingMessages_CloseChannelWithSteamID", [("uint64_steamid", "steamID"), ("int", "localChannel")]),
+    ("int", "Steam_GameServerNetworkingMessages_SendMessageToSteamIDBytes", [("uint64_steamid", "steamID"), ("const char *", "data"), ("size_t", "dataSize"), ("int", "sendFlags"), ("int", "remoteChannel")]),
+    ("SteamworksBytesVector", "Steam_GameServerNetworkingMessages_ReceiveMessagesOnChannelBytes", [("int", "localChannel"), ("int", "maxMessages")]),
+    ("bool", "Steam_GameServerNetworkingMessages_AcceptSessionWithSteamID", [("uint64_steamid", "steamID")]),
+    ("bool", "Steam_GameServerNetworkingMessages_CloseSessionWithSteamID", [("uint64_steamid", "steamID")]),
+    ("bool", "Steam_GameServerNetworkingMessages_CloseChannelWithSteamID", [("uint64_steamid", "steamID"), ("int", "localChannel")]),
+    ("bool", "Steam_RemoteStorage_FileWriteBytes", [("const char *", "filename"), ("const char *", "data"), ("size_t", "dataSize")]),
+    ("SteamworksBytes", "Steam_RemoteStorage_FileReadBytes", [("const char *", "filename"), ("int32", "dataSize")]),
+    ("SteamAPICall_t", "Steam_RemoteStorage_FileWriteAsyncBytes", [("const char *", "filename"), ("const char *", "data"), ("size_t", "dataSize")]),
+    ("SteamworksBytes", "Steam_RemoteStorage_FileReadAsyncCompleteBytes", [("SteamAPICall_t", "readCall"), ("uint32", "dataSize")]),
+    ("bool", "Steam_RemoteStorage_FileWriteStreamWriteChunkBytes", [("UGCFileWriteStreamHandle_t", "writeHandle"), ("const char *", "data"), ("size_t", "dataSize")]),
+    ("bool", "Steam_HTTP_SetHTTPRequestRawPostBodyBytes", [("HTTPRequestHandle", "request"), ("const char *", "contentType"), ("const char *", "data"), ("size_t", "dataSize")]),
+    ("SteamworksBytes", "Steam_HTTP_GetHTTPResponseBodyDataBytes", [("HTTPRequestHandle", "request"), ("uint32", "dataSize")]),
+    ("SteamworksBytes", "Steam_HTTP_GetHTTPStreamingResponseBodyDataBytes", [("HTTPRequestHandle", "request"), ("uint32", "offset"), ("uint32", "dataSize")]),
+    ("bool", "Steam_GameServerHTTP_SetHTTPRequestRawPostBodyBytes", [("HTTPRequestHandle", "request"), ("const char *", "contentType"), ("const char *", "data"), ("size_t", "dataSize")]),
+    ("SteamworksBytes", "Steam_GameServerHTTP_GetHTTPResponseBodyDataBytes", [("HTTPRequestHandle", "request"), ("uint32", "dataSize")]),
+    ("SteamworksBytes", "Steam_GameServerHTTP_GetHTTPStreamingResponseBodyDataBytes", [("HTTPRequestHandle", "request"), ("uint32", "offset"), ("uint32", "dataSize")]),
+    ("int", "Steam_NetworkingSend_Unreliable", []),
+    ("int", "Steam_NetworkingSend_UnreliableNoDelay", []),
+    ("int", "Steam_NetworkingSend_Reliable", []),
+    ("int", "Steam_NetworkingSend_ReliableNoNagle", []),
+    ("int", "Steam_NetworkingConnectionState_None", []),
+    ("int", "Steam_NetworkingConnectionState_Connecting", []),
+    ("int", "Steam_NetworkingConnectionState_FindingRoute", []),
+    ("int", "Steam_NetworkingConnectionState_Connected", []),
+    ("int", "Steam_NetworkingConnectionState_ClosedByPeer", []),
+    ("int", "Steam_NetworkingConnectionState_ProblemDetectedLocally", []),
+    ("int", "Steam_NetConnectionEnd_AppGeneric", []),
+    ("int", "Steam_NetConnectionEnd_AppExceptionGeneric", []),
+    ("std::vector<std::string>", "Steam_Lobby_GetDataEntries", [("uint64_steamid", "lobbyID")]),
+    ("SteamAPICall_t", "Steam_Lobby_Create", [("int", "lobbyType"), ("int", "maxMembers")]),
+    ("bool", "Steam_Lobby_IsCreatePending", []),
+    ("bool", "Steam_Lobby_IsCreateComplete", []),
+    ("bool", "Steam_Lobby_CreateHadIOFailure", []),
+    ("uint64_steamid", "Steam_Lobby_GetCreatedLobbyID", []),
+    ("int", "Steam_Lobby_GetCreateResult", []),
+    ("bool", "Steam_Lobby_CreateSucceeded", []),
+    ("SteamAPICall_t", "Steam_Lobby_Join", [("uint64_steamid", "lobbyID")]),
+    ("bool", "Steam_Lobby_IsJoinPending", []),
+    ("bool", "Steam_Lobby_IsJoinComplete", []),
+    ("bool", "Steam_Lobby_JoinHadIOFailure", []),
+    ("uint64_steamid", "Steam_Lobby_GetJoinedLobbyID", []),
+    ("uint32", "Steam_Lobby_GetJoinResponse", []),
+    ("bool", "Steam_Lobby_JoinSucceeded", []),
+    ("int", "Steam_Lobby_ChatRoomEnterResponseSuccess", []),
+    ("void", "Steam_Lobby_EnableChatCallbacks", []),
+    ("void", "Steam_Lobby_ClearChatMessages", []),
+    ("bool", "Steam_Lobby_SendChatMessage", [("uint64_steamid", "lobbyID"), ("const char *", "message")]),
+    ("std::vector<std::string>", "Steam_Lobby_PollChatMessages", [("int", "maxMessages")]),
+    ("HServerQuery", "Steam_MatchmakingServers_PingServer", [("uint32", "ip"), ("uint16", "port")]),
+    ("bool", "Steam_MatchmakingServers_IsPingPending", []),
+    ("bool", "Steam_MatchmakingServers_IsPingComplete", []),
+    ("bool", "Steam_MatchmakingServers_PingFailed", []),
+    ("bool", "Steam_MatchmakingServers_PingSucceeded", []),
+    ("std::string", "Steam_MatchmakingServers_GetPingServer", []),
+    ("void", "Steam_MatchmakingServers_ClearPingResult", []),
+    ("HServerQuery", "Steam_MatchmakingServers_ServerFriends", [("uint32", "ip"), ("uint16", "port")]),
+    ("bool", "Steam_MatchmakingServers_IsServerFriendsPending", []),
+    ("bool", "Steam_MatchmakingServers_IsServerFriendsComplete", []),
+    ("bool", "Steam_MatchmakingServers_ServerFriendsFailed", []),
+    ("bool", "Steam_MatchmakingServers_ServerFriendsSucceeded", []),
+    ("std::vector<std::string>", "Steam_MatchmakingServers_GetServerFriends", []),
+    ("void", "Steam_MatchmakingServers_ClearServerFriendsResult", []),
+    ("int", "Steam_FriendFlagImmediate", []),
+    ("int", "Steam_FriendFlagOnGameServer", []),
+    ("int", "Steam_FriendFlagAll", []),
+    ("int", "Steam_LobbyTypePrivate", []),
+    ("int", "Steam_LobbyTypeFriendsOnly", []),
+    ("int", "Steam_LobbyTypePublic", []),
+    ("int", "Steam_LobbyTypeInvisible", []),
+    ("int", "Steam_LobbyTypePrivateUnique", []),
+    ("int", "Steam_LobbyComparisonEqual", []),
+    ("int", "Steam_PersonaStateOffline", []),
+    ("int", "Steam_PersonaStateOnline", []),
+    ("int", "Steam_PersonaStateBusy", []),
+    ("int", "Steam_PersonaStateAway", []),
+    ("int", "Steam_PersonaStateSnooze", []),
+    ("int", "Steam_PersonaStateLookingToTrade", []),
+    ("int", "Steam_PersonaStateLookingToPlay", []),
+    ("int", "Steam_PersonaStateInvisible", []),
+    ("int", "Steam_Friends_GetFriendCountImmediate", []),
+    ("uint64_steamid", "Steam_Friends_GetFriendByIndexImmediate", [("int", "index")]),
+    ("bool", "Steam_Friends_GetFriendGamePlayedInfo", [("uint64_steamid", "friendID")]),
+    ("uint64_gameid", "Steam_Friends_GetFriendGameID", [("uint64_steamid", "friendID")]),
+    ("AppId_t", "Steam_Friends_GetFriendGameAppID", [("uint64_steamid", "friendID")]),
+    ("uint32", "Steam_Friends_GetFriendGameIP", [("uint64_steamid", "friendID")]),
+    ("uint16", "Steam_Friends_GetFriendGamePort", [("uint64_steamid", "friendID")]),
+    ("uint16", "Steam_Friends_GetFriendGameQueryPort", [("uint64_steamid", "friendID")]),
+    ("uint64_steamid", "Steam_Friends_GetFriendGameLobbyID", [("uint64_steamid", "friendID")]),
+    ("bool", "Steam_Friends_IsFriendInCurrentGame", [("uint64_steamid", "friendID")]),
 ]
 
 MANUAL_DISPATCH_FUNCTIONS = [
@@ -807,12 +952,30 @@ def resolve_c_type(type_name: str, typedefs: dict[str, str], enums: set[str]) ->
 
 def c_return(method: dict, expression: str, c_type: str, cpp_type: str) -> str:
     if cpp_type == "void":
-        return f"\t{expression};"
+        return f"\t\t{expression};"
     if c_type == "SWS_String":
-        return f"\treturn CopyStringForC( {expression} );"
+        return f"\t\treturn CopyStringForC( {expression} );"
+    if c_type == "SWS_StringList":
+        return f"\t\treturn CopyStringListForC( {expression} );"
+    if c_type == "SWS_Bytes":
+        return f"\t\treturn CopyBytesForC( {expression} );"
+    if c_type == "SWS_BytesList":
+        return f"\t\treturn CopyBytesListForC( {expression} );"
     if c_type == cpp_type:
-        return f"\treturn {expression};"
-    return f"\treturn static_cast<{c_type}>( {expression} );"
+        return f"\t\treturn {expression};"
+    return f"\t\treturn static_cast<{c_type}>( {expression} );"
+
+
+def c_default_return(c_type: str) -> str:
+    if c_type == "void":
+        return "\t\treturn;"
+    if c_type == "bool":
+        return "\t\treturn false;"
+    if c_type == "const char *":
+        return "\t\treturn EmptyCString();"
+    if c_type == "SWS_String":
+        return "\t\treturn {};"
+    return "\t\treturn {};"
 
 
 def c_argument(param_type: str, param_name: str, c_type: str) -> str:
@@ -851,6 +1014,9 @@ def c_method(method: dict, typedefs: dict[str, str], enums: set[str]) -> dict | 
         "c_name": c_wrapper_name(method),
         "cpp_return_type": return_type,
         "c_return_type": c_return_type,
+        "classname": method.get("classname"),
+        "methodname": method.get("methodname"),
+        "flat_name": method.get("flat_name"),
         "params": params,
     }
 
@@ -887,7 +1053,14 @@ def c_definition(method: dict) -> str:
     lines = [
         c_signature(method),
         "{",
+        "\ttry",
+        "\t{",
         c_return(method, expression, method["c_return_type"], method["cpp_return_type"]),
+        "\t}",
+        "\tcatch ( const std::exception & )",
+        "\t{",
+        c_default_return(method["c_return_type"]),
+        "\t}",
         "}",
     ]
     return "\n".join(lines)
@@ -911,7 +1084,7 @@ def c_api_methods(api: dict, methods: list[dict]) -> list[dict]:
     )
     manual = [
         method
-        for item in C_MANUAL_FUNCTIONS + dispatch_items
+        for item in C_MANUAL_FUNCTIONS + C_HELPER_FUNCTIONS + dispatch_items
         if (method := c_manual_method(item, typedefs, enums)) is not None
     ]
     generated = [
@@ -920,6 +1093,44 @@ def c_api_methods(api: dict, methods: list[dict]) -> list[dict]:
         if (method := c_method(item, typedefs, enums)) is not None
     ]
     return sorted(manual + generated, key=lambda item: item["c_name"])
+
+
+def c_api_model(c_methods: list[dict]) -> dict:
+    return {
+        "schema_version": 1,
+        "methods": [
+            {
+                "c_name": method["c_name"],
+                "c_return_type": method["c_return_type"],
+                "cpp_name": method["cpp_name"],
+                "cpp_return_type": method["cpp_return_type"],
+                "classname": method.get("classname"),
+                "methodname": method.get("methodname"),
+                "flat_name": method.get("flat_name"),
+                "params": [
+                    {
+                        "name": param["name"],
+                        "c_type": param["c_type"],
+                        "cpp_type": param["cpp_type"],
+                    }
+                    for param in method["params"]
+                ],
+            }
+            for method in c_methods
+        ],
+    }
+
+
+def python_swig_renames(c_methods: list[dict]) -> str:
+    lines = []
+    seen = set()
+    for method in c_methods:
+        legacy_name = method["cpp_name"]
+        if legacy_name in seen:
+            continue
+        seen.add(legacy_name)
+        lines.append(f'%rename({legacy_name}) {method["c_name"]};')
+    return "\n".join(lines)
 
 
 def manual_dispatch_entries() -> list[dict]:
@@ -1086,6 +1297,7 @@ def generate(api: dict, output_dir: Path, steam_include: Path) -> None:
     interface = output_dir / "steamworks.i"
     c_header = output_dir / "steamworks_c_api.h"
     c_source = output_dir / "steamworks_c_api.cpp"
+    c_model = output_dir / "steamworks_c_api_model.json"
 
     generated_declarations = "\n".join(declaration(method) for method in methods)
     generated_definitions = "\n\n".join(definition(method) for method in methods)
@@ -1093,6 +1305,7 @@ def generate(api: dict, output_dir: Path, steam_include: Path) -> None:
     c_methods = c_api_methods(api, methods)
     c_declarations = "\n".join(c_declaration(method) for method in c_methods)
     c_definitions = "\n\n".join(c_definition(method) for method in c_methods)
+    c_python_renames = python_swig_renames(c_methods)
 
     header.write_text(
         render_template(
@@ -1140,7 +1353,7 @@ def generate(api: dict, output_dir: Path, steam_include: Path) -> None:
     interface.write_text(
         render_template(
             "steamworks.i.in",
-            swig_type_declarations=swig_declarations,
+            python_swig_renames=c_python_renames,
         )
         + "\n",
         encoding="utf-8",
@@ -1161,6 +1374,11 @@ def generate(api: dict, output_dir: Path, steam_include: Path) -> None:
             c_definitions=c_definitions,
         )
         + "\n",
+        encoding="utf-8",
+    )
+
+    c_model.write_text(
+        json.dumps(c_api_model(c_methods), indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
 

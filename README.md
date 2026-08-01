@@ -1,8 +1,8 @@
 # Steamworks SWIG Python Wrapper
 
-Experimental Python bindings for the Steamworks SDK using SWIG and Valve's flat
-Steamworks API. This project currently targets SDK v1.65 and may require changes to
-build against a different version.
+Experimental Python bindings for the Steamworks SDK using SWIG over a generated
+C ABI. This project currently targets SDK v1.65 and may require changes to build
+against a different version.
 
 The wrapper is generated from:
 
@@ -11,7 +11,7 @@ sdk/public/steam/steam_api.json
 sdk/public/steam/steam_api_flat.h
 ```
 
-The project includes an experimental Go wrapper.See [GO.md](GO.md) for Go 
+The project includes an experimental Go wrapper. See [GO.md](GO.md) for Go
 binding generation, package layout, and smoke-test instructions.
 
 ## Requirements
@@ -152,9 +152,9 @@ Steamworks terms. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Other Language Targets
 
-Although this project currently generates Python bindings, its C++ shim and
-most of its SWIG interface declarations can be adapted to other SWIG-supported
-languages, such as C#, Java, Ruby, Lua, or JavaScript.
+Although this project currently generates Python and experimental Go bindings,
+the generated C ABI is intended to be the common foundation for other language
+targets such as Lua, Ruby, Zig, Rust FFI, C#, Java, or JavaScript.
 
 Supporting another target requires a separate language-specific build and
 package layer. Exception mapping, callback/event delivery, native object
@@ -162,8 +162,9 @@ ownership, string and buffer typemaps, and runtime-library loading must be
 reviewed for that language. The manual-versus-automatic callback dispatch
 restriction must also remain enforced.
 
-Go is possible through SWIG, but a direct cgo wrapper may provide a simpler
-interface and more predictable ownership semantics.
+The internal C++ helper shim remains an implementation detail for Steamworks
+quirks, callback decoding, and APIs that need explicit adapters. Language
+bindings should target `generated/steamworks_c_api.h`, not the helper shim.
 
 The same Steamworks SDK distribution rules apply to every target language:
 obtain the SDK separately from Valve, do not redistribute SDK headers, API JSON,
@@ -204,29 +205,23 @@ Subscribed to app: yes
 The smoke test uses `Steam_InitEx()` and prints `Steam_GetLastInitError()` if
 Steamworks initialization fails.
 
-## Global Helpers
-
-The generated module includes a small hand-written global API shim in addition
-to the JSON-derived interface methods. Some global SDK functions still need explicit 
-typemaps before they can be safely wrapped, notably callback function pointer 
-registration APIs.
-
 ## C ABI Layer
 
-The generator also emits `generated/steamworks_c_api.h` and
-`generated/steamworks_c_api.cpp` as a language-neutral ABI foundation for
-Go/cgo, Zig, Rust FFI, Lua, Ruby, and similar bindings. The public header avoids
-Steam C++ types and STL containers; generated functions use fixed-width C types,
-`bool`, and `const char *`.
+The generator emits `generated/steamworks_c_api.h`,
+`generated/steamworks_c_api.cpp`, and `generated/steamworks_c_api_model.json`
+as the primary language-neutral ABI foundation. Python and Go both bind through
+this layer. The public header avoids Steam C++ types and STL containers;
+generated functions use fixed-width C types, `bool`, `const char *`, and
+`SWS_String` for owned string results.
 
 Automatically generated C ABI functions are named after Valve's unique flat API
 symbols with an `SWS_` prefix, for example
 `SWS_SteamAPI_ISteamApps_BIsSubscribed()`. Curated global helpers keep their
 existing shim names with the same prefix, for example `SWS_Steam_Init()`.
 
-This layer currently covers the same scalar/string-safe JSON methods as the
-Python generator plus core init and game-server helpers. Pointer buffers,
-callback registration, owned string results, and vector results still need
+This layer currently covers scalar/string-safe JSON methods plus core init,
+game-server, lobby, manual-dispatch, callback cleanup, and selected async helper
+APIs. Pointer buffers, callback function pointers, and vector results still need
 explicit C-safe adapters.
 
 ## API Coverage
@@ -238,15 +233,14 @@ with Python scalar/string types. Methods that require output structs, pointer
 buffers, callbacks, or interface pointers usually need explicit shim code.
 
 Current generated interface coverage is **624 of 921 SDK method overloads, or
-67.8%**. Those 624 SDK methods collapse to **618 unique Python function names**
-where Valve exposes C++ overloads with the same method name.
+67.8%**. These methods are emitted through the C ABI and exposed to Python with
+legacy `Steam_*` names for compatibility.
 
-The generated module currently exports **761 unique `Steam_*` Python
-functions**: **618 JSON-derived functions** plus **143 hand-written
-static/helper functions**. Helper functions cover initialization, manual
-dispatch, game-server initialization, networking payloads,
-`ISteamNetworkingSockets` connection-status and query helpers, lobby async
-calls, matchmaking server pings/friend queries, and friend game/server state.
+The generated module currently exposes the scalar/string-safe C ABI surface plus
+hand-written C-safe helper functions for initialization, manual dispatch,
+game-server initialization, lobby list async calls, callback cleanup, and friend
+game/server state. Helpers that return byte buffers or vectors need explicit C
+ABI adapters before they can be exposed through the C ABI-first Python binding.
 
 | Steamworks group | JSON SDK methods | JSON wrapped | JSON coverage | JSON Python funcs | Static/helper funcs | Total Python funcs |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |

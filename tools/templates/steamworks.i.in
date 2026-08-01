@@ -1,48 +1,64 @@
 %module steamworks
 
 %{
-#include "steamworks_swig_shim.h"
+#include "steamworks_c_api.h"
 %}
 
-%include <exception.i>
-%include <std_string.i>
-%include <std_vector.i>
-%template(StringVector) std::vector<std::string>;
+%include "stdint.i"
 
-%exception {
-    try {
-        $action
-    } catch (const std::logic_error &exc) {
-        SWIG_exception(SWIG_RuntimeError, exc.what());
-    } catch (const std::exception &exc) {
-        SWIG_exception(SWIG_RuntimeError, exc.what());
-    }
-}
-
-typedef std::string SteamworksBytes;
-typedef std::vector<std::string> SteamworksBytesVector;
-
-%typemap(out) SteamworksBytes {
-    $result = PyBytes_FromStringAndSize($1.data(), static_cast<Py_ssize_t>($1.size()));
+%typemap(out) SWS_String {
+    $result = PyUnicode_FromStringAndSize($1.data ? $1.data : "", static_cast<Py_ssize_t>($1.size));
+    SWS_FreeString($1);
     if (!$result) {
         SWIG_fail;
     }
 }
 
-%typemap(out) SteamworksBytesVector {
-    PyObject *list = PyList_New(static_cast<Py_ssize_t>($1.size()));
+%typemap(out) SWS_StringList {
+    PyObject *list = PyList_New(static_cast<Py_ssize_t>($1.size));
     if (!list) {
+        SWS_FreeStringList($1);
         SWIG_fail;
     }
-    for (size_t i = 0; i < $1.size(); ++i) {
-        const std::string &item = $1[i];
-        PyObject *bytes = PyBytes_FromStringAndSize(item.data(), static_cast<Py_ssize_t>(item.size()));
+    for (size_t i = 0; i < $1.size; ++i) {
+        SWS_String item = $1.items[i];
+        PyObject *text = PyUnicode_FromStringAndSize(item.data ? item.data : "", static_cast<Py_ssize_t>(item.size));
+        if (!text) {
+            Py_DECREF(list);
+            SWS_FreeStringList($1);
+            SWIG_fail;
+        }
+        PyList_SET_ITEM(list, static_cast<Py_ssize_t>(i), text);
+    }
+    SWS_FreeStringList($1);
+    $result = list;
+}
+
+%typemap(out) SWS_Bytes {
+    $result = PyBytes_FromStringAndSize(reinterpret_cast<const char *>($1.data), static_cast<Py_ssize_t>($1.size));
+    SWS_FreeBytes($1);
+    if (!$result) {
+        SWIG_fail;
+    }
+}
+
+%typemap(out) SWS_BytesList {
+    PyObject *list = PyList_New(static_cast<Py_ssize_t>($1.size));
+    if (!list) {
+        SWS_FreeBytesList($1);
+        SWIG_fail;
+    }
+    for (size_t i = 0; i < $1.size; ++i) {
+        SWS_Bytes item = $1.items[i];
+        PyObject *bytes = PyBytes_FromStringAndSize(reinterpret_cast<const char *>(item.data), static_cast<Py_ssize_t>(item.size));
         if (!bytes) {
             Py_DECREF(list);
+            SWS_FreeBytesList($1);
             SWIG_fail;
         }
         PyList_SET_ITEM(list, static_cast<Py_ssize_t>(i), bytes);
     }
+    SWS_FreeBytesList($1);
     $result = list;
 }
 
@@ -61,6 +77,6 @@ typedef std::vector<std::string> SteamworksBytesVector;
     $1 = PyBytes_Check($input) ? 1 : 0;
 }
 
-{{ swig_type_declarations }}
+{{ python_swig_renames }}
 
-%include "steamworks_swig_shim.h"
+%include "steamworks_c_api.h"
