@@ -340,6 +340,33 @@ std::string EscapeEventField( const std::string &value )
 	return escaped;
 }
 
+void AppendPayloadField( std::string &payload, const char *key, const std::string &value )
+{
+	if ( !payload.empty() )
+	{
+		payload += '\t';
+	}
+	payload += key;
+	payload += '=';
+	payload += EscapeEventField( value );
+}
+
+void AppendPayloadField( std::string &payload, const char *key, const char *value )
+{
+	AppendPayloadField( payload, key, value ? std::string( value ) : std::string() );
+}
+
+void AppendPayloadField( std::string &payload, const char *key, bool value )
+{
+	AppendPayloadField( payload, key, value ? "true" : "false" );
+}
+
+template <typename T>
+void AppendPayloadNumber( std::string &payload, const char *key, T value )
+{
+	AppendPayloadField( payload, key, std::to_string( value ) );
+}
+
 class LobbyChatQueue
 {
 public:
@@ -1071,6 +1098,588 @@ int Steam_GetLastInitResult()
 const char * Steam_GetLastInitError()
 {
 	return g_lastInitError;
+}
+
+std::string Steam_Apps_GetDLCDataByIndexString( int dlcIndex )
+{
+	ISteamApps *apps = SteamApps();
+	if ( !apps )
+	{
+		return {};
+	}
+
+	AppId_t appID = k_uAppIdInvalid;
+	bool available = false;
+	char name[256] = { 0 };
+	if ( !apps->BGetDLCDataByIndex( dlcIndex, &appID, &available, name, sizeof( name ) ) )
+	{
+		return {};
+	}
+
+	std::string payload;
+	AppendPayloadNumber( payload, "app_id", appID );
+	AppendPayloadField( payload, "available", available );
+	AppendPayloadField( payload, "name", name );
+	return payload;
+}
+
+std::string Steam_Apps_GetTimedTrialString()
+{
+	ISteamApps *apps = SteamApps();
+	if ( !apps )
+	{
+		return {};
+	}
+
+	uint32 secondsAllowed = 0;
+	uint32 secondsPlayed = 0;
+	if ( !apps->BIsTimedTrial( &secondsAllowed, &secondsPlayed ) )
+	{
+		return {};
+	}
+
+	std::string payload;
+	AppendPayloadNumber( payload, "seconds_allowed", secondsAllowed );
+	AppendPayloadNumber( payload, "seconds_played", secondsPlayed );
+	return payload;
+}
+
+std::string Steam_Apps_GetAppInstallDirString( AppId_t appID )
+{
+	ISteamApps *apps = SteamApps();
+	if ( !apps )
+	{
+		return {};
+	}
+
+	std::vector<char> buffer( 4096, '\0' );
+	const uint32 written = apps->GetAppInstallDir( appID, buffer.data(), static_cast<uint32>( buffer.size() ) );
+	if ( written == 0 )
+	{
+		return {};
+	}
+	return std::string( buffer.data() );
+}
+
+std::string Steam_Apps_GetBetaInfoString( int betaIndex )
+{
+	ISteamApps *apps = SteamApps();
+	if ( !apps )
+	{
+		return {};
+	}
+
+	uint32 flags = 0;
+	uint32 buildID = 0;
+	uint32 lastUpdated = 0;
+	char betaName[256] = { 0 };
+	char description[1024] = { 0 };
+	if ( !apps->GetBetaInfo( betaIndex, &flags, &buildID, betaName, sizeof( betaName ), description, sizeof( description ), &lastUpdated ) )
+	{
+		return {};
+	}
+
+	std::string payload;
+	AppendPayloadNumber( payload, "flags", flags );
+	AppendPayloadNumber( payload, "build_id", buildID );
+	AppendPayloadField( payload, "name", betaName );
+	AppendPayloadField( payload, "description", description );
+	AppendPayloadNumber( payload, "last_updated", lastUpdated );
+	return payload;
+}
+
+std::string Steam_Apps_GetCurrentBetaNameString()
+{
+	ISteamApps *apps = SteamApps();
+	if ( !apps )
+	{
+		return {};
+	}
+
+	char name[256] = { 0 };
+	return apps->GetCurrentBetaName( name, sizeof( name ) ) ? std::string( name ) : std::string();
+}
+
+std::string Steam_Apps_GetDlcDownloadProgressString( AppId_t appID )
+{
+	ISteamApps *apps = SteamApps();
+	if ( !apps )
+	{
+		return {};
+	}
+
+	uint64 bytesDownloaded = 0;
+	uint64 bytesTotal = 0;
+	if ( !apps->GetDlcDownloadProgress( appID, &bytesDownloaded, &bytesTotal ) )
+	{
+		return {};
+	}
+
+	std::string payload;
+	AppendPayloadNumber( payload, "bytes_downloaded", bytesDownloaded );
+	AppendPayloadNumber( payload, "bytes_total", bytesTotal );
+	return payload;
+}
+
+std::vector<std::string> Steam_Apps_GetInstalledDepotsList( AppId_t appID )
+{
+	std::vector<std::string> result;
+	ISteamApps *apps = SteamApps();
+	if ( !apps )
+	{
+		return result;
+	}
+
+	std::vector<DepotId_t> depots( 256 );
+	const uint32 count = apps->GetInstalledDepots( appID, depots.data(), static_cast<uint32>( depots.size() ) );
+	result.reserve( count );
+	for ( uint32 index = 0; index < count && index < depots.size(); ++index )
+	{
+		result.emplace_back( std::to_string( depots[index] ) );
+	}
+	return result;
+}
+
+std::string Steam_Apps_GetLaunchCommandLineString()
+{
+	ISteamApps *apps = SteamApps();
+	if ( !apps )
+	{
+		return {};
+	}
+
+	std::vector<char> buffer( 4096, '\0' );
+	const int written = apps->GetLaunchCommandLine( buffer.data(), static_cast<int>( buffer.size() ) );
+	if ( written <= 0 )
+	{
+		return {};
+	}
+	return std::string( buffer.data() );
+}
+
+std::string Steam_Apps_GetNumBetasString()
+{
+	ISteamApps *apps = SteamApps();
+	if ( !apps )
+	{
+		return {};
+	}
+
+	int available = 0;
+	int privateCount = 0;
+	const int total = apps->GetNumBetas( &available, &privateCount );
+	std::string payload;
+	AppendPayloadNumber( payload, "total", total );
+	AppendPayloadNumber( payload, "available", available );
+	AppendPayloadNumber( payload, "private", privateCount );
+	return payload;
+}
+
+std::vector<std::string> Steam_Inventory_GetItemDefinitionIDsList()
+{
+	std::vector<std::string> result;
+	ISteamInventory *inventory = SteamInventory();
+	if ( !inventory )
+	{
+		return result;
+	}
+
+	uint32 count = 0;
+	if ( !inventory->GetItemDefinitionIDs( nullptr, &count ) || count == 0 )
+	{
+		return result;
+	}
+
+	std::vector<SteamItemDef_t> definitions( count );
+	if ( !inventory->GetItemDefinitionIDs( definitions.data(), &count ) )
+	{
+		return result;
+	}
+
+	result.reserve( count );
+	for ( uint32 index = 0; index < count && index < definitions.size(); ++index )
+	{
+		result.emplace_back( std::to_string( definitions[index] ) );
+	}
+	return result;
+}
+
+std::string Steam_Inventory_GetItemDefinitionPropertyString( SteamItemDef_t definition, const char *propertyName )
+{
+	ISteamInventory *inventory = SteamInventory();
+	if ( !inventory )
+	{
+		return {};
+	}
+
+	uint32 valueSize = 0;
+	if ( !inventory->GetItemDefinitionProperty( definition, propertyName, nullptr, &valueSize ) || valueSize == 0 )
+	{
+		return {};
+	}
+
+	std::vector<char> buffer( valueSize, '\0' );
+	return inventory->GetItemDefinitionProperty( definition, propertyName, buffer.data(), &valueSize ) ? std::string( buffer.data() ) : std::string();
+}
+
+std::string Steam_Inventory_GetItemPriceString( SteamItemDef_t definition )
+{
+	ISteamInventory *inventory = SteamInventory();
+	if ( !inventory )
+	{
+		return {};
+	}
+
+	uint64 currentPrice = 0;
+	uint64 basePrice = 0;
+	if ( !inventory->GetItemPrice( definition, &currentPrice, &basePrice ) )
+	{
+		return {};
+	}
+
+	std::string payload;
+	AppendPayloadNumber( payload, "current_price", currentPrice );
+	AppendPayloadNumber( payload, "base_price", basePrice );
+	return payload;
+}
+
+std::vector<std::string> Steam_Inventory_GetItemsWithPricesList()
+{
+	std::vector<std::string> result;
+	ISteamInventory *inventory = SteamInventory();
+	if ( !inventory )
+	{
+		return result;
+	}
+
+	const uint32 count = inventory->GetNumItemsWithPrices();
+	if ( count == 0 )
+	{
+		return result;
+	}
+
+	std::vector<SteamItemDef_t> definitions( count );
+	std::vector<uint64> currentPrices( count );
+	std::vector<uint64> basePrices( count );
+	if ( !inventory->GetItemsWithPrices( definitions.data(), currentPrices.data(), basePrices.data(), count ) )
+	{
+		return result;
+	}
+
+	result.reserve( count );
+	for ( uint32 index = 0; index < count; ++index )
+	{
+		std::string payload;
+		AppendPayloadNumber( payload, "item_def", definitions[index] );
+		AppendPayloadNumber( payload, "current_price", currentPrices[index] );
+		AppendPayloadNumber( payload, "base_price", basePrices[index] );
+		result.push_back( payload );
+	}
+	return result;
+}
+
+std::string Steam_Inventory_GetResultItemPropertyString( SteamInventoryResult_t resultHandle, uint32 itemIndex, const char *propertyName )
+{
+	ISteamInventory *inventory = SteamInventory();
+	if ( !inventory )
+	{
+		return {};
+	}
+
+	uint32 valueSize = 0;
+	if ( !inventory->GetResultItemProperty( resultHandle, itemIndex, propertyName, nullptr, &valueSize ) || valueSize == 0 )
+	{
+		return {};
+	}
+
+	std::vector<char> buffer( valueSize, '\0' );
+	return inventory->GetResultItemProperty( resultHandle, itemIndex, propertyName, buffer.data(), &valueSize ) ? std::string( buffer.data() ) : std::string();
+}
+
+std::string Steam_UGC_GetItemDownloadInfoString( PublishedFileId_t publishedFileID )
+{
+	ISteamUGC *ugc = SteamUGC();
+	if ( !ugc )
+	{
+		return {};
+	}
+
+	uint64 bytesDownloaded = 0;
+	uint64 bytesTotal = 0;
+	if ( !ugc->GetItemDownloadInfo( publishedFileID, &bytesDownloaded, &bytesTotal ) )
+	{
+		return {};
+	}
+
+	std::string payload;
+	AppendPayloadNumber( payload, "bytes_downloaded", bytesDownloaded );
+	AppendPayloadNumber( payload, "bytes_total", bytesTotal );
+	return payload;
+}
+
+std::string Steam_UGC_GetItemInstallInfoString( PublishedFileId_t publishedFileID )
+{
+	ISteamUGC *ugc = SteamUGC();
+	if ( !ugc )
+	{
+		return {};
+	}
+
+	uint64 sizeOnDisk = 0;
+	uint32 timestamp = 0;
+	std::vector<char> folder( 4096, '\0' );
+	if ( !ugc->GetItemInstallInfo( publishedFileID, &sizeOnDisk, folder.data(), static_cast<uint32>( folder.size() ), &timestamp ) )
+	{
+		return {};
+	}
+
+	std::string payload;
+	AppendPayloadNumber( payload, "size_on_disk", sizeOnDisk );
+	AppendPayloadField( payload, "folder", folder.data() );
+	AppendPayloadNumber( payload, "timestamp", timestamp );
+	return payload;
+}
+
+std::string Steam_UGC_GetItemUpdateProgressString( UGCUpdateHandle_t updateHandle )
+{
+	ISteamUGC *ugc = SteamUGC();
+	if ( !ugc )
+	{
+		return {};
+	}
+
+	uint64 bytesProcessed = 0;
+	uint64 bytesTotal = 0;
+	const EItemUpdateStatus status = ugc->GetItemUpdateProgress( updateHandle, &bytesProcessed, &bytesTotal );
+	std::string payload;
+	AppendPayloadNumber( payload, "status", static_cast<int>( status ) );
+	AppendPayloadNumber( payload, "bytes_processed", bytesProcessed );
+	AppendPayloadNumber( payload, "bytes_total", bytesTotal );
+	return payload;
+}
+
+std::string Steam_UGC_GetQueryUGCAdditionalPreviewString( UGCQueryHandle_t queryHandle, uint32 index, uint32 previewIndex )
+{
+	ISteamUGC *ugc = SteamUGC();
+	if ( !ugc )
+	{
+		return {};
+	}
+
+	char urlOrVideoID[4096] = { 0 };
+	char originalFileName[1024] = { 0 };
+	EItemPreviewType previewType = k_EItemPreviewType_Image;
+	if ( !ugc->GetQueryUGCAdditionalPreview( queryHandle, index, previewIndex, urlOrVideoID, sizeof( urlOrVideoID ), originalFileName, sizeof( originalFileName ), &previewType ) )
+	{
+		return {};
+	}
+
+	std::string payload;
+	AppendPayloadField( payload, "url_or_video_id", urlOrVideoID );
+	AppendPayloadField( payload, "original_file_name", originalFileName );
+	AppendPayloadNumber( payload, "preview_type", static_cast<int>( previewType ) );
+	return payload;
+}
+
+std::string Steam_UGC_GetQueryUGCKeyValueTagByIndexString( UGCQueryHandle_t queryHandle, uint32 index, uint32 tagIndex )
+{
+	ISteamUGC *ugc = SteamUGC();
+	if ( !ugc )
+	{
+		return {};
+	}
+
+	char key[1024] = { 0 };
+	char value[4096] = { 0 };
+	if ( !ugc->GetQueryUGCKeyValueTag( queryHandle, index, tagIndex, key, sizeof( key ), value, sizeof( value ) ) )
+	{
+		return {};
+	}
+
+	std::string payload;
+	AppendPayloadField( payload, "key", key );
+	AppendPayloadField( payload, "value", value );
+	return payload;
+}
+
+std::string Steam_UGC_GetQueryUGCKeyValueTagValueString( UGCQueryHandle_t queryHandle, uint32 index, const char *key )
+{
+	ISteamUGC *ugc = SteamUGC();
+	if ( !ugc )
+	{
+		return {};
+	}
+
+	char value[4096] = { 0 };
+	return ugc->GetQueryUGCKeyValueTag( queryHandle, index, key, value, sizeof( value ) ) ? std::string( value ) : std::string();
+}
+
+std::string Steam_UGC_GetQueryUGCMetadataString( UGCQueryHandle_t queryHandle, uint32 index )
+{
+	ISteamUGC *ugc = SteamUGC();
+	if ( !ugc )
+	{
+		return {};
+	}
+
+	char metadata[4096] = { 0 };
+	return ugc->GetQueryUGCMetadata( queryHandle, index, metadata, sizeof( metadata ) ) ? std::string( metadata ) : std::string();
+}
+
+std::string Steam_UGC_GetQueryUGCPreviewURLString( UGCQueryHandle_t queryHandle, uint32 index )
+{
+	ISteamUGC *ugc = SteamUGC();
+	if ( !ugc )
+	{
+		return {};
+	}
+
+	char url[4096] = { 0 };
+	return ugc->GetQueryUGCPreviewURL( queryHandle, index, url, sizeof( url ) ) ? std::string( url ) : std::string();
+}
+
+std::string Steam_UGC_GetQueryUGCTagDisplayNameString( UGCQueryHandle_t queryHandle, uint32 index, uint32 tagIndex )
+{
+	ISteamUGC *ugc = SteamUGC();
+	if ( !ugc )
+	{
+		return {};
+	}
+
+	char value[1024] = { 0 };
+	return ugc->GetQueryUGCTagDisplayName( queryHandle, index, tagIndex, value, sizeof( value ) ) ? std::string( value ) : std::string();
+}
+
+std::string Steam_UGC_GetQueryUGCTagString( UGCQueryHandle_t queryHandle, uint32 index, uint32 tagIndex )
+{
+	ISteamUGC *ugc = SteamUGC();
+	if ( !ugc )
+	{
+		return {};
+	}
+
+	char value[1024] = { 0 };
+	return ugc->GetQueryUGCTag( queryHandle, index, tagIndex, value, sizeof( value ) ) ? std::string( value ) : std::string();
+}
+
+std::string Steam_UGC_GetSupportedGameVersionDataString( UGCQueryHandle_t queryHandle, uint32 index, uint32 versionIndex )
+{
+	ISteamUGC *ugc = SteamUGC();
+	if ( !ugc )
+	{
+		return {};
+	}
+
+	char minBranch[256] = { 0 };
+	char maxBranch[256] = { 0 };
+	if ( !ugc->GetSupportedGameVersionData( queryHandle, index, versionIndex, minBranch, maxBranch, sizeof( minBranch ) ) )
+	{
+		return {};
+	}
+
+	std::string payload;
+	AppendPayloadField( payload, "game_branch_min", minBranch );
+	AppendPayloadField( payload, "game_branch_max", maxBranch );
+	return payload;
+}
+
+std::string Steam_User_GetAvailableVoiceString( uint32 sampleRate )
+{
+	ISteamUser *user = SteamUser();
+	if ( !user )
+	{
+		return {};
+	}
+
+	uint32 compressed = 0;
+	uint32 uncompressed = 0;
+	const EVoiceResult result = user->GetAvailableVoice( &compressed, &uncompressed, sampleRate );
+	std::string payload;
+	AppendPayloadNumber( payload, "result", static_cast<int>( result ) );
+	AppendPayloadNumber( payload, "compressed", compressed );
+	AppendPayloadNumber( payload, "uncompressed", uncompressed );
+	return payload;
+}
+
+std::string Steam_User_GetUserDataFolderString()
+{
+	ISteamUser *user = SteamUser();
+	if ( !user )
+	{
+		return {};
+	}
+
+	std::vector<char> buffer( 4096, '\0' );
+	return user->GetUserDataFolder( buffer.data(), static_cast<int>( buffer.size() ) ) ? std::string( buffer.data() ) : std::string();
+}
+
+std::string Steam_Utils_FilterTextString( int context, uint64_steamid sourceSteamID, const char *inputMessage )
+{
+	ISteamUtils *utils = SteamUtils();
+	if ( !utils || !inputMessage )
+	{
+		return {};
+	}
+
+	const size_t inputSize = std::strlen( inputMessage );
+	std::vector<char> buffer( std::max<size_t>( 256, inputSize * 4 + 1 ), '\0' );
+	const int written = utils->FilterText(
+		static_cast<ETextFilteringContext>( context ),
+		CSteamID( sourceSteamID ),
+		inputMessage,
+		buffer.data(),
+		static_cast<uint32>( buffer.size() )
+	);
+	return written >= 0 ? std::string( buffer.data() ) : std::string();
+}
+
+std::string Steam_Utils_GetEnteredGamepadTextInputString()
+{
+	ISteamUtils *utils = SteamUtils();
+	if ( !utils )
+	{
+		return {};
+	}
+
+	std::vector<char> buffer( 4096, '\0' );
+	return utils->GetEnteredGamepadTextInput( buffer.data(), static_cast<uint32>( buffer.size() ) ) ? std::string( buffer.data() ) : std::string();
+}
+
+std::string Steam_Utils_GetImageSizeString( int image )
+{
+	ISteamUtils *utils = SteamUtils();
+	if ( !utils )
+	{
+		return {};
+	}
+
+	uint32 width = 0;
+	uint32 height = 0;
+	if ( !utils->GetImageSize( image, &width, &height ) )
+	{
+		return {};
+	}
+
+	std::string payload;
+	AppendPayloadNumber( payload, "width", width );
+	AppendPayloadNumber( payload, "height", height );
+	return payload;
+}
+
+std::string Steam_Video_IsBroadcastingString()
+{
+	ISteamVideo *video = SteamVideo();
+	if ( !video )
+	{
+		return {};
+	}
+
+	int viewers = 0;
+	const bool broadcasting = video->IsBroadcasting( &viewers );
+	std::string payload;
+	AppendPayloadField( payload, "broadcasting", broadcasting );
+	AppendPayloadNumber( payload, "viewers", viewers );
+	return payload;
 }
 
 bool Steam_GameServer_Init( uint32 ip, uint16 gamePort, uint16 queryPort, int serverMode, const char * versionString )
