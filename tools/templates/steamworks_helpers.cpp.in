@@ -1,6 +1,7 @@
 #include "steamworks_helpers.h"
 
 #include <atomic>
+#include <climits>
 #include <cstdint>
 #include <cstring>
 #include <stdexcept>
@@ -1949,14 +1950,19 @@ std::vector<std::string> Steam_NetworkingSockets_PollConnectionStatusChangedStri
 	return g_networkingStatusChangedQueue.PopEvents( maxEvents );
 }
 
-int Steam_NetworkingSockets_SendMessageToConnectionString( HSteamNetConnection connection, const std::string & data, int sendFlags )
+int Steam_NetworkingSockets_SendMessageToConnectionString( HSteamNetConnection connection, const char * data, int sendFlags )
 {
 	auto *sockets = SteamAPI_SteamNetworkingSockets_SteamAPI();
-	if ( !sockets )
+	if ( !sockets || !data )
 	{
 		return k_EResultInvalidState;
 	}
-	return static_cast<int>( sockets->SendMessageToConnection( connection, data.data(), static_cast<uint32>( data.size() ), sendFlags, nullptr ) );
+	const size_t dataSize = std::strlen( data );
+	if ( dataSize > UINT32_MAX )
+	{
+		return k_EResultInvalidState;
+	}
+	return static_cast<int>( sockets->SendMessageToConnection( connection, data, static_cast<uint32>( dataSize ), sendFlags, nullptr ) );
 }
 
 int Steam_NetworkingSockets_SendMessageToConnectionBytes( HSteamNetConnection connection, const char * data, size_t dataSize, int sendFlags )
@@ -2193,14 +2199,19 @@ bool Steam_GameServerNetworkingSockets_SetConnectionPollGroup( HSteamNetConnecti
 	return sockets ? sockets->SetConnectionPollGroup( connection, pollGroup ) : false;
 }
 
-int Steam_GameServerNetworkingSockets_SendMessageToConnectionString( HSteamNetConnection connection, const std::string & data, int sendFlags )
+int Steam_GameServerNetworkingSockets_SendMessageToConnectionString( HSteamNetConnection connection, const char * data, int sendFlags )
 {
 	auto *sockets = SteamAPI_SteamGameServerNetworkingSockets_SteamAPI();
-	if ( !sockets )
+	if ( !sockets || !data )
 	{
 		return k_EResultInvalidState;
 	}
-	return static_cast<int>( sockets->SendMessageToConnection( connection, data.data(), static_cast<uint32>( data.size() ), sendFlags, nullptr ) );
+	const size_t dataSize = std::strlen( data );
+	if ( dataSize > UINT32_MAX )
+	{
+		return k_EResultInvalidState;
+	}
+	return static_cast<int>( sockets->SendMessageToConnection( connection, data, static_cast<uint32>( dataSize ), sendFlags, nullptr ) );
 }
 
 int Steam_GameServerNetworkingSockets_SendMessageToConnectionBytes( HSteamNetConnection connection, const char * data, size_t dataSize, int sendFlags )
@@ -2660,14 +2671,19 @@ void Steam_Lobby_ClearChatMessages()
 	g_lobbyChatQueue.Clear();
 }
 
-bool Steam_Lobby_SendChatMessage( uint64_steamid lobbyID, const std::string & message )
+bool Steam_Lobby_SendChatMessage( uint64_steamid lobbyID, const char * message )
 {
 	ISteamMatchmaking *matchmaking = SteamMatchmaking();
-	if ( !matchmaking || lobbyID == 0 )
+	if ( !matchmaking || lobbyID == 0 || !message )
 	{
 		return false;
 	}
-	return matchmaking->SendLobbyChatMsg( CSteamID( lobbyID ), message.c_str(), static_cast<int>( message.size() + 1 ) );
+	const size_t messageSize = std::strlen( message );
+	if ( messageSize >= static_cast<size_t>( INT_MAX ) )
+	{
+		return false;
+	}
+	return matchmaking->SendLobbyChatMsg( CSteamID( lobbyID ), message, static_cast<int>( messageSize + 1 ) );
 }
 
 std::vector<std::string> Steam_Lobby_PollChatMessages( int maxMessages )

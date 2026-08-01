@@ -41,6 +41,26 @@ def declaration(method: dict) -> str:
     return f'{method["return_type"]} {method["wrapper_name"]}( {params} );'
 
 
+def helper_declaration(item: tuple) -> str:
+    return_type, name, params = item
+    rendered_params = ", ".join(f"{type_name} {param_name}" for type_name, param_name in params)
+    if rendered_params:
+        return f"{return_type} {name}( {rendered_params} );"
+    return f"{return_type} {name}();"
+
+
+def helper_declarations(items: list[tuple]) -> str:
+    return "\n".join(helper_declaration(item) for item in items)
+
+
+def manual_helper_declaration_items() -> list[tuple]:
+    return [
+        item
+        for item in C_MANUAL_FUNCTIONS
+        if item[1].startswith("Steam_Lobby_")
+    ]
+
+
 def definition(method: dict) -> str:
     params = ", ".join(f"{type_name} {name}" for type_name, name in method["params"])
     args = ", ".join(["self"] + [name for _, name in method["params"]])
@@ -100,14 +120,12 @@ def generate(api: dict, output_dir: Path, steam_include: Path) -> None:
         header,
         render_template(
             "steamworks_helpers.h.in",
+            helper_declarations=helper_declarations(manual_helper_declaration_items() + C_HELPER_FUNCTIONS),
             generated_declarations=generated_declarations,
             output_helper_declarations=generated_output_helper_declarations(
                 api, flat_identifiers
             ),
             manual_dispatch_declarations=manual_dispatch_declarations(),
-            matchmaking_server_friends_declarations=matchmaking_server_friends_declarations(
-                steam_include
-            ),
         )
         + "\n",
     )
