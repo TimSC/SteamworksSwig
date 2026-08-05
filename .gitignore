@@ -11,8 +11,7 @@
 /dist/
 /wheelhouse/
 /generated/
-/go/steamworks/generated.go
-/go/steamworks/raw/
+/go/
 /lua/steamworks.lua
 /lua/steamworks_c_api.cpp
 /lua/steamworks_c_api.h

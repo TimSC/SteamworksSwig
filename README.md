@@ -260,6 +260,22 @@ Windows x64:   sdk/redistributable_bin/win64/steam_api64.dll
 Windows x86:   sdk/redistributable_bin/steam_api.dll
 ```
 
+## Runtime Shutdown
+
+Applications should still call the binding shutdown function when they are done
+with Steamworks. The shutdown helpers clear wrapper-owned callback/helper state
+and then call Valve's `SteamAPI_Shutdown()` / `SteamGameServer_Shutdown()`.
+
+During Linux testing with Steamworks SDK 1.65, a minimal C++ program using only
+Valve's SDK reproduced an intermittent segfault inside the Steam client during
+`SteamAPI_Shutdown()` after an async lobby query. The repro lives in
+`shutdown/` and is intended for reporting/debugging the upstream issue.
+
+Skipping shutdown is not treated as a supported workaround for this project: it
+can leave Steam client internals and networking state uncleared. If you hit this
+crash, keep calling the shutdown function in normal application code and use the
+standalone repro when reporting or isolating the Steam client behavior.
+
 ## Python Usage
 
 See [PYTHON.md](PYTHON.md) for the Python grouped API, smoke tests, callback
@@ -287,6 +303,10 @@ callback function pointers, C++ reference types, interface pointers, and
 unsupported SDK structs still need explicit C-safe adapters.
 
 ### Helper Specs
+
+A helper is project-owned adapter code around Valve SDK calls, used when the raw
+SDK shape needs lifecycle handling, ownership handling, output conversion, or
+callback state to be usable from language bindings.
 
 Most C ABI functions are generated directly from Valve's flat API metadata.
 Helpers are the exception: they are project-defined adapters for APIs that need
