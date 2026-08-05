@@ -197,8 +197,22 @@ python3 -m twine upload wheelhouse/*.whl
 
 ### Windows wheels for PyPI
 
+
+
 Run the PowerShell build script on 64-bit Windows with Visual Studio Build Tools,
-SWIG, and the Python Launcher installed:
+SWIG, install the python version manager:
+
+```powershell
+winget install 9NQ7512CXL7T -e --accept-package-agreements --disable-interactivity
+```
+
+For each version of Python that is required:
+
+```powershell
+py install 3.14
+```
+
+To build the wheels for windows:
 
 ```powershell
 .\tools\build_windows_wheels.ps1 -SdkDir C:\path\to\steamworks\sdk
@@ -213,9 +227,8 @@ matrix with:
   -PythonVersions 3.11,3.12
 ```
 
-The script expects each selected 64-bit Python version to be registered with
-the Windows `py.exe` launcher. It validates each wheel with Twine and checks
-that the resulting filename has a `win_amd64` platform tag. Upload with:
+It validates each wheel with Twine and checks that the resulting
+filename has a `win_amd64` platform tag. Upload with:
 
 ```powershell
 py -3.12 -m twine upload wheelhouse\*.whl
