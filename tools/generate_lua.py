@@ -251,16 +251,36 @@ def collision_name(candidate: tuple[str, str, str, dict]) -> str:
     return grouped_helper_method_name(interface, helper_name(method), c_name, drop_get=False)
 
 
-def param_names(method: dict) -> list[str]:
+def param_names_and_args(method: dict) -> tuple[list[str], list[str]]:
     params = []
+    args = []
     seen: Counter[str] = Counter()
-    for param in method_params(method):
+    raw_params = method_params(method)
+    index = 0
+    while index < len(raw_params):
+        param = raw_params[index]
         name = lua_name(param.get("name", "arg"))
+        if (
+            param.get("c_type") == "const uint8_t *"
+            and index + 1 < len(raw_params)
+            and raw_params[index + 1].get("c_type") == "size_t"
+            and raw_params[index + 1].get("name") == f'{param.get("name")}Size'
+        ):
+            seen[name] += 1
+            if seen[name] > 1:
+                name = f"{name}_{seen[name]}"
+            params.append(name)
+            args.append(name)
+            index += 2
+            continue
+
         seen[name] += 1
         if seen[name] > 1:
             name = f"{name}_{seen[name]}"
         params.append(name)
-    return params
+        args.append(name)
+        index += 1
+    return params, args
 
 
 def generate(model: dict) -> str:
@@ -275,10 +295,12 @@ def generate(model: dict) -> str:
     )
 
     for (interface, _, c_name, method), grouped_name in named_candidates:
+        params, args = param_names_and_args(method)
         item = {
             "name": grouped_name,
             "raw_c_name": c_name,
-            "params": param_names(method),
+            "params": params,
+            "args": args,
         }
         if interface == "Global/static":
             module_functions.append(item)
@@ -341,7 +363,7 @@ def generate(model: dict) -> str:
         lines.extend([f"steamworks.{table_name} = {{}}", ""])
         for item in sorted(interfaces[interface], key=lambda value: value["name"]):
             params = ", ".join(item["params"])
-            args = params
+            args = ", ".join(item["args"])
             call = f'raw.{item["raw_c_name"]}({args})' if args else f'raw.{item["raw_c_name"]}()'
             lines.append(f"function steamworks.{table_name}.{item['name']}({params})")
             lines.append(f"    return {call}")
@@ -350,7 +372,7 @@ def generate(model: dict) -> str:
 
     for item in sorted(module_functions, key=lambda value: value["name"]):
         params = ", ".join(item["params"])
-        args = params
+        args = ", ".join(item["args"])
         call = f'raw.{item["raw_c_name"]}({args})' if args else f'raw.{item["raw_c_name"]}()'
         lines.append(f"function steamworks.{item['name']}({params})")
         lines.append(f"    return {call}")

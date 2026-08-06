@@ -29,6 +29,7 @@ C_TYPE_MAP = {
     "bool": "bool",
     "char": "char",
     "const char *": "const char *",
+    "const uint8_t *": "const uint8_t *",
     "float": "float",
     "double": "double",
     "int": "int32_t",

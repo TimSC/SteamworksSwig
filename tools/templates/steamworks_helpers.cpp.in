@@ -759,7 +759,7 @@ SteamworksBytesVector ReceiveMessagesOnChannelBytes( ISteamNetworkingMessages *m
 	return result;
 }
 
-bool SetHTTPRequestRawPostBodyBytes( ISteamHTTP *http, HTTPRequestHandle request, const char *contentType, const char *data, size_t dataSize )
+bool SetHTTPRequestRawPostBodyBytes( ISteamHTTP *http, HTTPRequestHandle request, const char *contentType, const uint8_t *data, size_t dataSize )
 {
 	if ( !http || !contentType || ( !data && dataSize > 0 ) || dataSize > UINT32_MAX )
 	{
@@ -768,7 +768,7 @@ bool SetHTTPRequestRawPostBodyBytes( ISteamHTTP *http, HTTPRequestHandle request
 	return http->SetHTTPRequestRawPostBody(
 		request,
 		contentType,
-		reinterpret_cast<uint8 *>( const_cast<char *>( data ) ),
+		const_cast<uint8 *>( reinterpret_cast<const uint8 *>( data ) ),
 		static_cast<uint32>( dataSize )
 	);
 }
@@ -1811,7 +1811,7 @@ SteamworksBytes Steam_User_GetLastAuthSessionTicketBytes()
 	return g_userAuthSessionTicketData;
 }
 
-int Steam_User_BeginAuthSessionBytes( const char * data, size_t dataSize, uint64_steamid steamID )
+int Steam_User_BeginAuthSessionBytes( const uint8_t * data, size_t dataSize, uint64_steamid steamID )
 {
 	auto *user = SteamAPI_SteamUser();
 	if ( !user || ( !data && dataSize > 0 ) || dataSize > static_cast<size_t>( INT32_MAX ) )
@@ -1821,14 +1821,14 @@ int Steam_User_BeginAuthSessionBytes( const char * data, size_t dataSize, uint64
 	return static_cast<int>( user->BeginAuthSession( data, static_cast<int>( dataSize ), CSteamID( steamID ) ) );
 }
 
-SteamAPICall_t Steam_User_RequestEncryptedAppTicketBytes( const char * data, size_t dataSize )
+SteamAPICall_t Steam_User_RequestEncryptedAppTicketBytes( const uint8_t * data, size_t dataSize )
 {
 	auto *user = SteamAPI_SteamUser();
 	if ( !user || ( !data && dataSize > 0 ) || dataSize > static_cast<size_t>( INT32_MAX ) )
 	{
 		return k_uAPICallInvalid;
 	}
-	return user->RequestEncryptedAppTicket( const_cast<char *>( data ), static_cast<int>( dataSize ) );
+	return user->RequestEncryptedAppTicket( const_cast<uint8_t *>( data ), static_cast<int>( dataSize ) );
 }
 
 SteamworksBytes Steam_User_GetEncryptedAppTicketBytes( int maxTicketSize )
@@ -1877,7 +1877,7 @@ SteamworksBytes Steam_GameServer_GetLastAuthSessionTicketBytes()
 	return g_gameServerAuthSessionTicketData;
 }
 
-int Steam_GameServer_BeginAuthSessionBytes( const char * data, size_t dataSize, uint64_steamid steamID )
+int Steam_GameServer_BeginAuthSessionBytes( const uint8_t * data, size_t dataSize, uint64_steamid steamID )
 {
 	auto *server = SteamAPI_SteamGameServer();
 	if ( !server || ( !data && dataSize > 0 ) || dataSize > static_cast<size_t>( INT32_MAX ) )
@@ -1978,7 +1978,7 @@ int Steam_NetworkingSockets_SendMessageToConnectionString( HSteamNetConnection c
 	return static_cast<int>( sockets->SendMessageToConnection( connection, data, static_cast<uint32>( dataSize ), sendFlags, nullptr ) );
 }
 
-int Steam_NetworkingSockets_SendMessageToConnectionBytes( HSteamNetConnection connection, const char * data, size_t dataSize, int sendFlags )
+int Steam_NetworkingSockets_SendMessageToConnectionBytes( HSteamNetConnection connection, const uint8_t * data, size_t dataSize, int sendFlags )
 {
 	auto *sockets = SteamAPI_SteamNetworkingSockets_SteamAPI();
 	if ( !sockets || ( !data && dataSize > 0 ) || dataSize > UINT32_MAX )
@@ -2227,7 +2227,7 @@ int Steam_GameServerNetworkingSockets_SendMessageToConnectionString( HSteamNetCo
 	return static_cast<int>( sockets->SendMessageToConnection( connection, data, static_cast<uint32>( dataSize ), sendFlags, nullptr ) );
 }
 
-int Steam_GameServerNetworkingSockets_SendMessageToConnectionBytes( HSteamNetConnection connection, const char * data, size_t dataSize, int sendFlags )
+int Steam_GameServerNetworkingSockets_SendMessageToConnectionBytes( HSteamNetConnection connection, const uint8_t * data, size_t dataSize, int sendFlags )
 {
 	auto *sockets = SteamAPI_SteamGameServerNetworkingSockets_SteamAPI();
 	if ( !sockets || ( !data && dataSize > 0 ) || dataSize > UINT32_MAX )
@@ -2257,7 +2257,7 @@ SteamworksBytesVector Steam_GameServerNetworkingSockets_ReceiveMessagesOnPollGro
 	return ReceiveMessagesOnPollGroupStrings( SteamAPI_SteamGameServerNetworkingSockets_SteamAPI(), pollGroup, maxMessages );
 }
 
-int Steam_NetworkingMessages_SendMessageToSteamIDBytes( uint64_steamid steamID, const char * data, size_t dataSize, int sendFlags, int remoteChannel )
+int Steam_NetworkingMessages_SendMessageToSteamIDBytes( uint64_steamid steamID, const uint8_t * data, size_t dataSize, int sendFlags, int remoteChannel )
 {
 	auto *messages = SteamAPI_SteamNetworkingMessages_SteamAPI();
 	if ( !messages || ( !data && dataSize > 0 ) || dataSize > UINT32_MAX )
@@ -2309,7 +2309,7 @@ bool Steam_NetworkingMessages_CloseChannelWithSteamID( uint64_steamid steamID, i
 	return messages->CloseChannelWithUser( identity, localChannel );
 }
 
-int Steam_GameServerNetworkingMessages_SendMessageToSteamIDBytes( uint64_steamid steamID, const char * data, size_t dataSize, int sendFlags, int remoteChannel )
+int Steam_GameServerNetworkingMessages_SendMessageToSteamIDBytes( uint64_steamid steamID, const uint8_t * data, size_t dataSize, int sendFlags, int remoteChannel )
 {
 	auto *messages = SteamAPI_SteamGameServerNetworkingMessages_SteamAPI();
 	if ( !messages || ( !data && dataSize > 0 ) || dataSize > UINT32_MAX )
@@ -2361,7 +2361,7 @@ bool Steam_GameServerNetworkingMessages_CloseChannelWithSteamID( uint64_steamid 
 	return messages->CloseChannelWithUser( identity, localChannel );
 }
 
-bool Steam_RemoteStorage_FileWriteBytes( const char * filename, const char * data, size_t dataSize )
+bool Steam_RemoteStorage_FileWriteBytes( const char * filename, const uint8_t * data, size_t dataSize )
 {
 	auto *storage = SteamAPI_SteamRemoteStorage();
 	if ( !storage || !filename || ( !data && dataSize > 0 ) || dataSize > static_cast<size_t>( INT32_MAX ) )
@@ -2389,7 +2389,7 @@ SteamworksBytes Steam_RemoteStorage_FileReadBytes( const char * filename, int32 
 	return data;
 }
 
-SteamAPICall_t Steam_RemoteStorage_FileWriteAsyncBytes( const char * filename, const char * data, size_t dataSize )
+SteamAPICall_t Steam_RemoteStorage_FileWriteAsyncBytes( const char * filename, const uint8_t * data, size_t dataSize )
 {
 	auto *storage = SteamAPI_SteamRemoteStorage();
 	if ( !storage || !filename || ( !data && dataSize > 0 ) || dataSize > UINT32_MAX )
@@ -2415,7 +2415,7 @@ SteamworksBytes Steam_RemoteStorage_FileReadAsyncCompleteBytes( SteamAPICall_t r
 	return data;
 }
 
-bool Steam_RemoteStorage_FileWriteStreamWriteChunkBytes( UGCFileWriteStreamHandle_t writeHandle, const char * data, size_t dataSize )
+bool Steam_RemoteStorage_FileWriteStreamWriteChunkBytes( UGCFileWriteStreamHandle_t writeHandle, const uint8_t * data, size_t dataSize )
 {
 	auto *storage = SteamAPI_SteamRemoteStorage();
 	if ( !storage || ( !data && dataSize > 0 ) || dataSize > static_cast<size_t>( INT32_MAX ) )
@@ -2425,7 +2425,7 @@ bool Steam_RemoteStorage_FileWriteStreamWriteChunkBytes( UGCFileWriteStreamHandl
 	return storage->FileWriteStreamWriteChunk( writeHandle, data, static_cast<int32>( dataSize ) );
 }
 
-bool Steam_HTTP_SetHTTPRequestRawPostBodyBytes( HTTPRequestHandle request, const char * contentType, const char * data, size_t dataSize )
+bool Steam_HTTP_SetHTTPRequestRawPostBodyBytes( HTTPRequestHandle request, const char * contentType, const uint8_t * data, size_t dataSize )
 {
 	return SetHTTPRequestRawPostBodyBytes( SteamAPI_SteamHTTP(), request, contentType, data, dataSize );
 }
@@ -2440,7 +2440,7 @@ SteamworksBytes Steam_HTTP_GetHTTPStreamingResponseBodyDataBytes( HTTPRequestHan
 	return GetHTTPStreamingResponseBodyDataBytes( SteamAPI_SteamHTTP(), request, offset, dataSize );
 }
 
-bool Steam_GameServerHTTP_SetHTTPRequestRawPostBodyBytes( HTTPRequestHandle request, const char * contentType, const char * data, size_t dataSize )
+bool Steam_GameServerHTTP_SetHTTPRequestRawPostBodyBytes( HTTPRequestHandle request, const char * contentType, const uint8_t * data, size_t dataSize )
 {
 	return SetHTTPRequestRawPostBodyBytes( SteamAPI_SteamGameServerHTTP(), request, contentType, data, dataSize );
 }

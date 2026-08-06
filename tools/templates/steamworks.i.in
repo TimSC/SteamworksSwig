@@ -62,18 +62,18 @@
     $result = list;
 }
 
-%typemap(in) (const char * data, size_t dataSize) (char *buffer = 0, Py_ssize_t buffer_size = 0) {
+%typemap(in) (const uint8_t * data, size_t dataSize) (char *buffer = 0, Py_ssize_t buffer_size = 0) {
     if (!PyBytes_Check($input)) {
         SWIG_exception_fail(SWIG_TypeError, "expected bytes");
     }
     if (PyBytes_AsStringAndSize($input, &buffer, &buffer_size) == -1) {
         SWIG_fail;
     }
-    $1 = buffer;
+    $1 = const_cast<uint8_t *>(reinterpret_cast<const uint8_t *>(buffer));
     $2 = static_cast<size_t>(buffer_size);
 }
 
-%typemap(typecheck) (const char * data, size_t dataSize) {
+%typemap(typecheck) (const uint8_t * data, size_t dataSize) {
     $1 = PyBytes_Check($input) ? 1 : 0;
 }
 

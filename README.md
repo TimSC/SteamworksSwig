@@ -301,8 +301,9 @@ The generator emits `generated/steamworks_c_api.h`,
 as the primary language-neutral ABI foundation. Python and Go both bind through
 this layer. The public header avoids Steam C++ types and STL containers;
 generated functions use fixed-width C types, `bool`, `const char *`,
-`SWS_String` for owned string results, `SWS_StringList` for owned string-list
-results, and `SWS_Bytes` / `SWS_BytesList` for binary payload helpers.
+`const uint8_t *` plus `size_t` for binary input buffers, `SWS_String` for
+owned string results, `SWS_StringList` for owned string-list results, and
+`SWS_Bytes` / `SWS_BytesList` for binary payload helpers.
 
 Automatically generated C ABI functions are named after Valve's unique flat API
 symbols with an `SWS_` prefix, for example

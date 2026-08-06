@@ -83,6 +83,38 @@ def python_collision_name(candidate: tuple[str, str, str, dict]) -> str:
     )
 
 
+def python_params_and_args(method: dict) -> tuple[list[str], list[str]]:
+    params = []
+    arg_names = []
+    seen_params: Counter[str] = Counter()
+    raw_params = method_params(method)
+    index = 0
+    while index < len(raw_params):
+        param = raw_params[index]
+        name = param_name(param.get("name", "arg"))
+        if (
+            param.get("c_type") == "const uint8_t *"
+            and index + 1 < len(raw_params)
+            and raw_params[index + 1].get("c_type") == "size_t"
+            and raw_params[index + 1].get("name") == f'{param.get("name")}Size'
+        ):
+            seen_params[name] += 1
+            if seen_params[name] > 1:
+                name = f"{name}_{seen_params[name]}"
+            params.append(name)
+            arg_names.append(name)
+            index += 2
+            continue
+
+        seen_params[name] += 1
+        if seen_params[name] > 1:
+            name = f"{name}_{seen_params[name]}"
+        params.append(name)
+        arg_names.append(name)
+        index += 1
+    return params, arg_names
+
+
 def generate(model: dict) -> str:
     candidates = method_candidates(model)
     interfaces: dict[str, list[dict]] = {}
@@ -96,16 +128,7 @@ def generate(model: dict) -> str:
     )
 
     for (interface, _, raw_c_name, method), grouped_name in named_candidates:
-        params = []
-        arg_names = []
-        seen_params: Counter[str] = Counter()
-        for param in method_params(method):
-            name = param_name(param.get("name", "arg"))
-            seen_params[name] += 1
-            if seen_params[name] > 1:
-                name = f"{name}_{seen_params[name]}"
-            params.append(name)
-            arg_names.append(name)
+        params, arg_names = python_params_and_args(method)
 
         interfaces.setdefault(interface, []).append(
             {
