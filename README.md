@@ -170,6 +170,8 @@ The model now records skipped methods and reasons, such as pointer output
 buffers, unsupported structs, callback function pointers, interface pointers, or
 owned result lifetimes.
 
+## Redistribution builds
+
 ### Linux wheels for PyPI
 
 PyPI does not accept generic `linux_x86_64` wheels. Build repaired manylinux
