@@ -12,6 +12,7 @@
 /wheelhouse/
 /generated/
 /go/
+/python/steamworks/grouped.py
 /lua/steamworks.lua
 /lua/steamworks_c_api.cpp
 /lua/steamworks_c_api.h

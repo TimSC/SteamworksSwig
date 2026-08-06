@@ -199,8 +199,6 @@ python3 -m twine upload wheelhouse/*.whl
 
 ### Windows wheels for PyPI
 
-
-
 Run the PowerShell build script on 64-bit Windows with Visual Studio Build Tools,
 SWIG, install the python version manager:
 

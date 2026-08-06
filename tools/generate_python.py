@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate optional grouped Python wrappers from the shared C ABI model."""
+"""Generate grouped Python wrappers from the shared C ABI model."""
 
 from __future__ import annotations
 
