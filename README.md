@@ -172,6 +172,54 @@ owned result lifetimes.
 
 ## Redistribution builds
 
+### GitHub Actions builds and PyPI publishing
+
+[`.github/workflows/wheels.yml`](.github/workflows/wheels.yml) builds CPython
+3.11–3.15 wheels for Linux x86-64 (manylinux2014), Windows x64, and macOS
+Intel x86-64 and Apple Silicon arm64. Each macOS architecture builds and tests
+on a native runner. It builds
+directly from the checkout with isolated build dependencies, including SWIG,
+smoke tests imports without starting Steam, checks metadata, and rejects SDK
+source/build files in the wheels. Linux/Windows ARM, Python 3.9–3.10, and
+free-threaded Python are outside this CI matrix. The SDK must provide
+`redistributable_bin/osx/libsteam_api.dylib` with support for both macOS
+architectures.
+
+Configure the following in **Settings → Secrets and variables → Actions**:
+
+- Secret `STEAMWORKS_SDK_TOKEN`: a fine-grained GitHub personal access token
+  restricted to `TimSC/SteamworksSdk`, with **Contents: read** permission. The
+  workflow's normal `GITHUB_TOKEN` cannot read that separate private repository.
+  Checkout credentials are not persisted or passed into wheel builds.
+- Variable `STEAMWORKS_SDK_REF`: the SDK commit SHA or tag to build against.
+  Pin a commit for reproducible releases; if unset, checkout uses the private
+  repository's default branch.
+- Variable `STEAMWORKS_SDK_SUBDIR`: the directory within the private repository
+  containing `public/` and `redistributable_bin/`, for example `sdk` or
+  `sdk_v165`. If unset, the repository root is used. The workflow validates the
+  layout before building.
+
+Create a GitHub environment named `pypi`. In the `steamworks-swig` project's
+PyPI publishing settings, add a
+[GitHub Trusted Publisher](https://docs.pypi.org/trusted-publishers/adding-a-publisher/)
+with owner `TimSC`, repository `SteamworksSwig`, workflow filename `wheels.yml`,
+and environment `pypi`. For a first upload, use a
+[pending publisher](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/)
+with project name `steamworks-swig`. No PyPI API token is needed.
+
+Run **Actions → Build and publish Python wheels → Run workflow** to build and
+review downloadable `wheels-*` artifacts without publishing. To publish, update
+`project.version` in `pyproject.toml`, commit it, and publish a GitHub Release
+with a matching `v` tag, for example `v0.1.3`. Publishing a release (including a
+prerelease) builds all target platforms and uploads their wheels to PyPI only after
+all builds and checks succeed. Use a new version for every upload. Manual runs
+never publish, even when run against a tag.
+
+The workflow only runs on manual dispatch and published releases, so pull
+requests do not receive private SDK credentials. Only wheel files are uploaded
+as artifacts or published; the private SDK checkout and source archives are
+not uploaded.
+
 ### Linux wheels for PyPI
 
 PyPI does not accept generic `linux_x86_64` wheels. Build repaired manylinux
@@ -182,7 +230,7 @@ tools/build_manylinux_wheels.sh --sdk-dir sdk
 ```
 
 By default this uses `quay.io/pypa/manylinux2014_x86_64` and builds CPython
-3.10-3.15 wheels into `wheelhouse/`. Limit the matrix when required:
+3.11-3.15 wheels into `wheelhouse/`. Limit the matrix when required:
 
 ```bash
 tools/build_manylinux_wheels.sh \
@@ -218,7 +266,7 @@ To build the wheels for windows:
 .\tools\build_windows_wheels.ps1 -SdkDir C:\path\to\steamworks\sdk
 ```
 
-It builds CPython 3.10-3.15 `win_amd64` wheels into `wheelhouse`. Build a smaller
+It builds CPython 3.11-3.15 `win_amd64` wheels into `wheelhouse`. Build a smaller
 matrix with:
 
 ```powershell

@@ -1,0 +1,126 @@
+name: Build and publish Python wheels
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Wheels (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022, macos-15-intel, macos-15]
+    env:
+      SDK_SUBDIR: ${{ vars.STEAMWORKS_SDK_SUBDIR || '.' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Check release version
+        if: github.event_name == 'release'
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        shell: python
+        run: |
+          import os
+          import tomllib
+          from pathlib import Path
+          version = tomllib.loads(Path('pyproject.toml').read_text())['project']['version']
+          if os.environ['RELEASE_TAG'] != f'v{version}':
+              raise SystemExit(f'Release tag must be v{version}, matching pyproject.toml')
+
+      # GITHUB_TOKEN cannot read a different private repository.
+      - name: Check SDK credentials
+        env:
+          SDK_TOKEN: ${{ secrets.STEAMWORKS_SDK_TOKEN }}
+        shell: python
+        run: |
+          import os
+          if not os.environ['SDK_TOKEN']:
+              raise SystemExit('Set STEAMWORKS_SDK_TOKEN to a token with Contents: read on TimSC/SteamworksSdk')
+
+      - name: Check out private SDK
+        uses: actions/checkout@v4
+        with:
+          repository: TimSC/SteamworksSdk
+          token: ${{ secrets.STEAMWORKS_SDK_TOKEN }}
+          ref: ${{ vars.STEAMWORKS_SDK_REF }}
+          path: _steamworks_sdk
+          persist-credentials: false
+
+      - name: Locate SDK
+        shell: python
+        run: |
+          import os
+          from pathlib import Path
+          checkout = Path('_steamworks_sdk').resolve()
+          sdk = (checkout / os.environ['SDK_SUBDIR']).resolve()
+          if not sdk.is_relative_to(checkout):
+              raise SystemExit('STEAMWORKS_SDK_SUBDIR must be inside the SDK checkout')
+          for relative in ('public/steam/steam_api.json', 'public/steam/steam_api_flat.h'):
+              if not (sdk / relative).is_file():
+                  raise SystemExit(f'Missing {sdk / relative}; configure STEAMWORKS_SDK_SUBDIR')
+          # Linux builds run in a container where the checkout is /project.
+          container_sdk = '/project/' + sdk.relative_to(Path.cwd()).as_posix()
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as env:
+              env.write(f'STEAMWORKS_SDK_DIR={sdk.as_posix()}\n')
+              env.write(f'CIBW_ENVIRONMENT_LINUX=STEAMWORKS_SDK_DIR="{container_sdk}"\n')
+
+      - name: Build and smoke test wheels
+        uses: pypa/cibuildwheel@v4.2.0
+        env:
+          CIBW_BUILD: 'cp311-* cp312-* cp313-* cp314-* cp315-*'
+          CIBW_SKIP: '*-musllinux_*'
+          CIBW_ARCHS_LINUX: x86_64
+          CIBW_ARCHS_WINDOWS: AMD64
+          CIBW_ARCHS_MACOS: native
+          CIBW_ENVIRONMENT_MACOS: 'STEAMWORKS_SDK_DIR="${{ env.STEAMWORKS_SDK_DIR }}"'
+          CIBW_ENVIRONMENT_WINDOWS: 'STEAMWORKS_SDK_DIR="${{ env.STEAMWORKS_SDK_DIR }}"'
+          # setup.py already bundles the Windows runtime beside the extension.
+          CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: ''
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
+          CIBW_TEST_COMMAND: 'python -c "import steamworks; import steamworks._steamworks"'
+
+      - name: Validate wheel metadata and contents
+        shell: bash
+        run: |
+          python -m pip install 'twine>=6,<7'
+          python -m twine check --strict wheelhouse/*.whl
+          python tools/check_release_wheels.py wheelhouse
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}
+          path: wheelhouse/*.whl
+          if-no-files-found: error
+
+  publish:
+    name: Publish to PyPI
+    if: github.event_name == 'release'
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: pypi
+      url: https://pypi.org/p/steamworks-swig
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          merge-multiple: true
+          path: dist
+
+      - name: Publish wheels using Trusted Publishing
+        uses: pypa/gh-action-pypi-publish@release/v1
