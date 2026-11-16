@@ -2,6 +2,23 @@ name: Build and publish Python wheels
 
 on:
   workflow_dispatch:
+    inputs:
+      platforms:
+        description: 'Platforms to build (comma-separated: linux, windows, macos-intel, macos-arm64)'
+        type: string
+        default: 'linux,windows,macos-intel,macos-arm64'
+        required: true
+      python_versions:
+        description: 'Python versions to build (comma-separated: 3.11 through 3.15)'
+        type: string
+        default: '3.11,3.12,3.13,3.14,3.15'
+        required: true
+      publish:
+        description: 'Publish successful wheels (requires Trusted Publisher setup)'
+        type: choice
+        options: [artifacts, testpypi, pypi]
+        default: artifacts
+        required: true
   release:
     types: [published]
 
@@ -9,13 +26,59 @@ permissions:
   contents: read
 
 jobs:
+  prepare:
+    name: Select build targets
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.targets.outputs.matrix }}
+      publish: ${{ steps.targets.outputs.publish }}
+    steps:
+      - name: Validate options and create matrix
+        id: targets
+        env:
+          PLATFORMS: ${{ inputs.platforms || 'linux,windows,macos-intel,macos-arm64' }}
+          PYTHON_VERSIONS: ${{ inputs.python_versions || '3.11,3.12,3.13,3.14,3.15' }}
+          PUBLISH: ${{ github.event_name == 'release' && 'pypi' || inputs.publish || 'artifacts' }}
+        shell: python
+        run: |
+          import json
+          import os
+
+          runners = {
+              'linux': 'ubuntu-24.04',
+              'windows': 'windows-2022',
+              'macos-intel': 'macos-15-intel',
+              'macos-arm64': 'macos-15',
+          }
+          supported_versions = [f'3.{minor}' for minor in range(11, 16)]
+
+          def select(name, supported):
+              values = list(dict.fromkeys(value.strip() for value in os.environ[name].split(',')))
+              if not values or any(value not in supported for value in values):
+                  raise SystemExit(f'{name}: use a comma-separated selection from {", ".join(supported)}')
+              return values
+
+          platforms = select('PLATFORMS', runners)
+          versions = select('PYTHON_VERSIONS', supported_versions)
+          target = os.environ['PUBLISH']
+          if target not in ('artifacts', 'testpypi', 'pypi'):
+              raise SystemExit('PUBLISH must be artifacts, testpypi, or pypi')
+          matrix = {'include': [
+              {'os': runners[platform], 'python': version,
+               'selector': 'cp' + version.replace('.', '') + '-*'}
+              for platform in platforms for version in versions
+          ]}
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              output.write(f'matrix={json.dumps(matrix)}\n')
+              output.write(f'publish={target}\n')
+
   build:
-    name: Wheels (${{ matrix.os }})
+    name: Wheels (${{ matrix.os }}, Python ${{ matrix.python }})
+    needs: prepare
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
-      matrix:
-        os: [ubuntu-24.04, windows-2022, macos-15-intel, macos-15]
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     env:
       SDK_SUBDIR: ${{ vars.STEAMWORKS_SDK_SUBDIR || '.' }}
     steps:
@@ -80,7 +143,7 @@ jobs:
       - name: Build and smoke test wheels
         uses: pypa/cibuildwheel@v4.2.0
         env:
-          CIBW_BUILD: 'cp311-* cp312-* cp313-* cp314-* cp315-*'
+          CIBW_BUILD: ${{ matrix.selector }}
           CIBW_SKIP: '*-musllinux_*'
           CIBW_ARCHS_LINUX: x86_64
           CIBW_ARCHS_WINDOWS: AMD64
@@ -101,18 +164,24 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ matrix.os }}
+          name: wheels-${{ matrix.os }}-cp${{ matrix.python }}
           path: wheelhouse/*.whl
           if-no-files-found: error
 
   publish:
-    name: Publish to PyPI
-    if: github.event_name == 'release'
-    needs: build
+    name: Publish to ${{ needs.prepare.outputs.publish }}
+    # Manual runs can publish artifacts from successful matrix jobs even if others fail.
+    # Releases still require every build to succeed.
+    if: >-
+      ${{ always() && !cancelled() && needs.prepare.result == 'success' &&
+          needs.prepare.outputs.publish != 'artifacts' &&
+          (needs.build.result == 'success' ||
+           (github.event_name == 'workflow_dispatch' && needs.build.result == 'failure')) }}
+    needs: [prepare, build]
     runs-on: ubuntu-24.04
     environment:
-      name: pypi
-      url: https://pypi.org/p/steamworks-swig
+      name: ${{ needs.prepare.outputs.publish }}
+      url: ${{ needs.prepare.outputs.publish == 'testpypi' && 'https://test.pypi.org/p/steamworks-swig' || 'https://pypi.org/p/steamworks-swig' }}
     permissions:
       id-token: write
     steps:
@@ -124,3 +193,5 @@ jobs:
 
       - name: Publish wheels using Trusted Publishing
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: ${{ needs.prepare.outputs.publish == 'testpypi' && 'https://test.pypi.org/legacy/' || 'https://upload.pypi.org/legacy/' }}

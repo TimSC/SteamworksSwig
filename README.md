@@ -207,13 +207,30 @@ and environment `pypi`. For a first upload, use a
 [pending publisher](https://docs.pypi.org/trusted-publishers/creating-a-project-through-oidc/)
 with project name `steamworks-swig`. No PyPI API token is needed.
 
-Run **Actions → Build and publish Python wheels → Run workflow** to build and
-review downloadable `wheels-*` artifacts without publishing. To publish, update
-`project.version` in `pyproject.toml`, commit it, and publish a GitHub Release
-with a matching `v` tag, for example `v0.1.3`. Publishing a release (including a
-prerelease) builds all target platforms and uploads their wheels to PyPI only after
-all builds and checks succeed. Use a new version for every upload. Manual runs
-never publish, even when run against a tag.
+For TestPyPI publishing, also create a GitHub environment named `testpypi`
+and register a separate Trusted Publisher on **TestPyPI**, using the same owner,
+repository, and workflow filename, with environment `testpypi`.
+
+Run **Actions → Build and publish Python wheels → Run workflow** and choose:
+
+- **Platforms to build:** comma-separated `linux`, `windows`, `macos-intel`,
+  and/or `macos-arm64` (default: all four).
+- **Python versions to build:** comma-separated versions from `3.11` to `3.15`
+  (default: all five).
+- **Publish successful wheels:** `artifacts` (default), `testpypi`, or `pypi`.
+  Every successful platform/version build saves a downloadable `wheels-*`
+  artifact. Selecting an index also publishes those successful wheels, even
+  if other builds fail. If no builds succeed, nothing can be published.
+
+For example, use `linux,windows`, `3.14,3.15`, and `testpypi` to build four
+wheels and upload the successful ones to TestPyPI. Invalid selections fail
+before SDK checkout or wheel builds.
+
+For automatic release publishing, update `project.version` in `pyproject.toml`,
+commit it, and publish a GitHub Release with a matching `v` tag, for example
+`v0.1.3`. Published releases (including prereleases) build all platforms and
+versions and publish to PyPI only after every build succeeds. Use a new version
+for each release; package indexes do not allow replacing uploaded wheel files.
 
 The workflow only runs on manual dispatch and published releases, so pull
 requests do not receive private SDK credentials. Only wheel files are uploaded
