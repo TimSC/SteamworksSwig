@@ -23,6 +23,7 @@ int g_lastGameServerInitResult = 0;
 CallbackMsg_t g_manualDispatchCallback = {};
 std::string g_manualDispatchCallbackData;
 bool g_manualDispatchHasCallback = false;
+HSteamPipe g_manualDispatchCallbackPipe = 0;
 std::string g_manualDispatchAPICallResultData;
 bool g_manualDispatchAPICallResultFailed = false;
 int g_manualDispatchAPICallResultCallbackID = 0;
@@ -81,6 +82,32 @@ void RequireCallbackDispatchMode( CallbackDispatchMode mode, const char *functio
 		+ " callback dispatch, but callback dispatch is "
 		+ CallbackDispatchModeName( activeMode )
 	);
+}
+
+// Release only the callback owned by this pipe; the other Steamworks lifetime
+// may still be active in the same process.
+void ReleaseManualDispatchCallback( HSteamPipe pipe )
+{
+	if ( !g_manualDispatchHasCallback || g_manualDispatchCallbackPipe != pipe )
+	{
+		return;
+	}
+	SteamAPI_ManualDispatch_FreeLastCallback( pipe );
+	g_manualDispatchCallback = {};
+	g_manualDispatchCallbackData.clear();
+	g_manualDispatchHasCallback = false;
+	g_manualDispatchCallbackPipe = 0;
+}
+
+void ResetDispatchModeIfUnused()
+{
+	if ( !SteamAPI_GetHSteamPipe() && !SteamGameServer_GetHSteamPipe() )
+	{
+		g_manualDispatchAPICallResultData.clear();
+		g_manualDispatchAPICallResultFailed = false;
+		g_manualDispatchAPICallResultCallbackID = 0;
+		g_callbackDispatchMode.store( k_CallbackDispatchModeUninitialized );
+	}
 }
 
 class LobbyAsyncState
@@ -846,25 +873,22 @@ void Steam_ClearHelperState()
 
 void Steam_Shutdown()
 {
-	Steam_NetworkingSockets_RunCallbacks();
-	SteamAPI_RunCallbacks();
-	Steam_NetworkingSockets_RunCallbacks();
-	Steam_ClearHelperState();
-	SteamAPI_Shutdown();
-	g_callbackDispatchMode.store( k_CallbackDispatchModeUninitialized );
+	const HSteamPipe pipe = SteamAPI_GetHSteamPipe();
+	if ( pipe )
+	{
+		// Cancel/unregister helpers while the SDK is live. Do not dispatch new
+		// work during teardown, or mix automatic and manual dispatch.
+		Steam_ClearHelperState();
+		ReleaseManualDispatchCallback( pipe );
+		g_userAuthSessionTicketData.clear();
+		SteamAPI_Shutdown();
+	}
+	ResetDispatchModeIfUnused();
 }
 
 void Steam_ShutdownManualDispatch()
 {
-	const HSteamPipe pipe = SteamAPI_GetHSteamPipe();
-	SteamAPI_ManualDispatch_RunFrame( pipe );
-	while ( SteamAPI_ManualDispatch_GetNextCallback( pipe, &g_manualDispatchCallback ) )
-	{
-		SteamAPI_ManualDispatch_FreeLastCallback( pipe );
-	}
-	Steam_ClearHelperState();
-	SteamAPI_Shutdown();
-	g_callbackDispatchMode.store( k_CallbackDispatchModeUninitialized );
+	Steam_Shutdown();
 }
 
 void Steam_RunCallbacks()
@@ -942,19 +966,23 @@ void Steam_ManualDispatch_RunFrame( HSteamPipe pipe )
 
 bool Steam_ManualDispatch_GetNextCallback( HSteamPipe pipe )
 {
+	RequireCallbackDispatchMode( k_CallbackDispatchModeManual, "Steam_ManualDispatch_GetNextCallback" );
+	if ( g_manualDispatchHasCallback )
+	{
+		throw std::logic_error( "free the outstanding manual callback before fetching another" );
+	}
 	g_manualDispatchCallback = {};
 	g_manualDispatchCallbackData.clear();
-	g_manualDispatchHasCallback = false;
-
-	RequireCallbackDispatchMode( k_CallbackDispatchModeManual, "Steam_ManualDispatch_GetNextCallback" );
-
 	CallbackMsg_t callback = {};
 	if ( !SteamAPI_ManualDispatch_GetNextCallback( pipe, &callback ) )
 	{
 		return false;
 	}
-
+	// Record ownership before copying: allocation failure must still allow
+	// explicit release or shutdown to free the native callback.
 	g_manualDispatchCallback = callback;
+	g_manualDispatchCallbackPipe = pipe;
+	g_manualDispatchHasCallback = true;
 	if ( callback.m_pubParam && callback.m_cubParam > 0 )
 	{
 		g_manualDispatchCallbackData.assign(
@@ -962,7 +990,6 @@ bool Steam_ManualDispatch_GetNextCallback( HSteamPipe pipe )
 			static_cast<size_t>( callback.m_cubParam )
 		);
 	}
-	g_manualDispatchHasCallback = true;
 	return true;
 }
 
@@ -1085,13 +1112,11 @@ bool Steam_ManualDispatch_GetAPICallResultFailed()
 void Steam_ManualDispatch_FreeLastCallback( HSteamPipe pipe )
 {
 	RequireCallbackDispatchMode( k_CallbackDispatchModeManual, "Steam_ManualDispatch_FreeLastCallback" );
-	if ( g_manualDispatchHasCallback )
+	if ( g_manualDispatchHasCallback && g_manualDispatchCallbackPipe != pipe )
 	{
-		SteamAPI_ManualDispatch_FreeLastCallback( pipe );
+		throw std::logic_error( "manual callback belongs to a different Steam pipe" );
 	}
-	g_manualDispatchCallback = {};
-	g_manualDispatchCallbackData.clear();
-	g_manualDispatchHasCallback = false;
+	ReleaseManualDispatchCallback( pipe );
 }
 
 HSteamPipe Steam_GetHSteamPipe()
@@ -1714,8 +1739,14 @@ int Steam_GameServer_InitEx( uint32 ip, uint16 gamePort, uint16 queryPort, int s
 
 void Steam_GameServer_Shutdown()
 {
-	SteamGameServer_Shutdown();
-	g_callbackDispatchMode.store( k_CallbackDispatchModeUninitialized );
+	const HSteamPipe pipe = SteamGameServer_GetHSteamPipe();
+	if ( pipe )
+	{
+		ReleaseManualDispatchCallback( pipe );
+		g_gameServerAuthSessionTicketData.clear();
+		SteamGameServer_Shutdown();
+	}
+	ResetDispatchModeIfUnused();
 }
 
 void Steam_GameServer_RunCallbacks()

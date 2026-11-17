@@ -343,8 +343,18 @@ Windows x86:   sdk/redistributable_bin/steam_api.dll
 ## Runtime Shutdown
 
 Applications should still call the binding shutdown function when they are done
-with Steamworks. The shutdown helpers clear wrapper-owned callback/helper state
-and then call Valve's `SteamAPI_Shutdown()` / `SteamGameServer_Shutdown()`.
+with Steamworks. Client shutdown cancels and unregisters client helper callbacks before calling
+Valve's `SteamAPI_Shutdown()`. Both client and game-server shutdown release any
+outstanding manual callback belonging to their pipe before shutting down that
+API. Shutdown does not pump callbacks, and `shutdown()` supports either dispatch
+mode; `shutdown_manual_dispatch()` is an alias for client shutdown. Repeated
+shutdown calls do not call Valve shutdown again once the pipe is closed.
+
+The dispatch mode stays selected while either the client or game-server pipe is
+live. Manual callback fetches must be paired with `free_last_callback()` on the
+same pipe before fetching another callback. Serialize shutdown with other SDK
+operations on the application's Steamworks thread; shutdown does not coordinate
+concurrent calls from other threads.
 
 During Linux testing with Steamworks SDK 1.65, a minimal C++ program using only
 Valve's SDK reproduced an intermittent segfault inside the Steam client during

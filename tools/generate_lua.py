@@ -332,7 +332,6 @@ def generate(model: dict) -> str:
         "end",
         "",
         "function steamworks.shutdown()",
-        "    raw.SWS_Steam_ClearHelperState()",
         "    raw.SWS_Steam_Shutdown()",
         "end",
         "",
