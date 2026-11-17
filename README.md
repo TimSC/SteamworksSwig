@@ -177,8 +177,10 @@ owned result lifetimes.
 [`.github/workflows/wheels.yml`](.github/workflows/wheels.yml) builds CPython
 3.11–3.15 wheels for Linux x86-64 (manylinux2014), Windows x64, and macOS
 Intel x86-64 and Apple Silicon arm64. Each macOS architecture builds and tests
-on a native runner. It builds
-directly from the checkout with isolated build dependencies, including SWIG,
+on a native runner. macOS builds set a deployment target of 10.15 for Intel
+and 11.0 for Apple Silicon; individual Python versions may require newer macOS.
+The Intel target matches the bundled SDK runtime and is also used during wheel
+repair. The workflow builds directly from the checkout with isolated build dependencies, including SWIG,
 smoke tests imports without starting Steam, checks metadata, and rejects SDK
 source/build files in the wheels. Linux/Windows ARM, Python 3.9–3.10, and
 free-threaded Python are outside this CI matrix. The SDK must provide

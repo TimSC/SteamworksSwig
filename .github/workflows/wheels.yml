@@ -148,7 +148,10 @@ jobs:
           CIBW_ARCHS_LINUX: x86_64
           CIBW_ARCHS_WINDOWS: AMD64
           CIBW_ARCHS_MACOS: native
-          CIBW_ENVIRONMENT_MACOS: 'STEAMWORKS_SDK_DIR="${{ env.STEAMWORKS_SDK_DIR }}"'
+          # Match the SDK runtime's minimum macOS version during build and repair.
+          CIBW_ENVIRONMENT_MACOS: >-
+            STEAMWORKS_SDK_DIR="${{ env.STEAMWORKS_SDK_DIR }}"
+            MACOSX_DEPLOYMENT_TARGET=${{ matrix.os == 'macos-15-intel' && '10.15' || '11.0' }}
           CIBW_ENVIRONMENT_WINDOWS: 'STEAMWORKS_SDK_DIR="${{ env.STEAMWORKS_SDK_DIR }}"'
           # setup.py already bundles the Windows runtime beside the extension.
           CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: ''
