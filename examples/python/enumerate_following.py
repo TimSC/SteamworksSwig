@@ -43,7 +43,7 @@ def wait_for_manual_api_call(api_call: int, timeout_seconds: float):
                     steamworks.manual_dispatch.callback_is_api_call_completed()
                     and steamworks.manual_dispatch.completed_api_call() == api_call
                 ):
-                    steamworks.manual_dispatch.api_call_result(
+                    retrieved = steamworks.manual_dispatch.api_call_result(
                         pipe,
                         api_call,
                         steamworks.manual_dispatch.completed_callback_size(),
@@ -51,7 +51,9 @@ def wait_for_manual_api_call(api_call: int, timeout_seconds: float):
                     )
                     return True, {
                         "callback_id": str(steamworks.manual_dispatch.completed_callback_id()),
-                        "failed": str(steamworks.manual_dispatch.api_call_result_failed()).lower(),
+                        "failed": str(
+                            not retrieved or steamworks.manual_dispatch.api_call_result_failed()
+                        ).lower(),
                     }
             finally:
                 steamworks.manual_dispatch.free_last_callback(pipe)

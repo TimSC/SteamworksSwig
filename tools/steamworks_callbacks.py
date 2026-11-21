@@ -252,6 +252,11 @@ MANUAL_DISPATCH_CALLBACKS = [
         ],
     },
     {
+        "name": "FloatingGamepadTextInputDismissed",
+        "type": "FloatingGamepadTextInputDismissed_t",
+        "fields": [("dismissed", 'std::string( "1" )')],
+    },
+    {
         "name": "GameLobbyJoinRequested",
         "type": "GameLobbyJoinRequested_t",
         "reserve": 128,

@@ -225,6 +225,8 @@ def grouped_helper_method_name(interface: str, model_helper_name: str, raw_name:
 def method_candidates(model: dict) -> list[tuple[str, str, str, dict]]:
     candidates = []
     for method in model_methods(model):
+        if method.get("language_support") == "python_only":
+            continue
         interface = method.get("interface")
         c_name = raw_c_name(method)
         if not interface or not c_name:

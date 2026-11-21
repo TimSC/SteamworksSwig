@@ -2,6 +2,7 @@
 
 %{
 #include "steamworks_c_api.h"
+#include <steam/steam_api.h>
 %}
 
 %include "stdint.i"
@@ -75,6 +76,97 @@
 
 %typemap(typecheck) (const uint8_t * data, size_t dataSize) {
     $1 = PyBytes_Check($input) ? 1 : 0;
+}
+
+%typemap(in, numinputs=0) (uint64_t *handlesOut, size_t capacity, size_t *countOut)
+    (uint64_t handles[STEAM_INPUT_MAX_COUNT], size_t count = 0) {
+    $1 = handles;
+    $2 = STEAM_INPUT_MAX_COUNT;
+    $3 = &count;
+}
+
+%typemap(argout) (uint64_t *handlesOut, size_t capacity, size_t *countOut) {
+    PyObject *controllers = PyTuple_New(static_cast<Py_ssize_t>(*$3));
+    if (!controllers) {
+        SWIG_fail;
+    }
+    for (size_t i = 0; i < *$3; ++i) {
+        PyObject *handle = PyLong_FromUnsignedLongLong($1[i]);
+        if (!handle) {
+            Py_DECREF(controllers);
+            SWIG_fail;
+        }
+        PyTuple_SET_ITEM(controllers, static_cast<Py_ssize_t>(i), handle);
+    }
+    Py_DECREF($result);
+    $result = controllers;
+}
+
+%typemap(in, numinputs=0) (bool *activeOut, bool *pressedOut)
+    (bool active = false, bool pressed = false) {
+    $1 = &active;
+    $2 = &pressed;
+}
+
+%typemap(argout) (bool *activeOut, bool *pressedOut) {
+    Py_DECREF($result);
+    $result = Py_BuildValue("(OO)", *$1 ? Py_True : Py_False, *$2 ? Py_True : Py_False);
+    if (!$result) {
+        SWIG_fail;
+    }
+}
+
+%typemap(in, numinputs=0) (bool *activeOut, int32_t *modeOut, float *xOut, float *yOut)
+    (bool active = false, int32_t mode = 0, float x = 0, float y = 0) {
+    $1 = &active;
+    $2 = &mode;
+    $3 = &x;
+    $4 = &y;
+}
+
+%typemap(argout) (bool *activeOut, int32_t *modeOut, float *xOut, float *yOut) {
+    Py_DECREF($result);
+    $result = Py_BuildValue("(Oiff)", *$1 ? Py_True : Py_False, static_cast<int>(*$2), *$3, *$4);
+    if (!$result) {
+        SWIG_fail;
+    }
+}
+
+%typemap(in, numinputs=0) (int32_t *originsOut, size_t capacity, size_t *countOut)
+    (int32_t origins[STEAM_INPUT_MAX_ORIGINS], size_t count = 0) {
+    $1 = origins;
+    $2 = STEAM_INPUT_MAX_ORIGINS;
+    $3 = &count;
+}
+
+%typemap(argout) (int32_t *originsOut, size_t capacity, size_t *countOut) {
+    Py_DECREF($result);
+    $result = PyTuple_New(static_cast<Py_ssize_t>(*$3));
+    if (!$result) {
+        SWIG_fail;
+    }
+    for (size_t i = 0; i < *$3; ++i) {
+        PyObject *origin = PyLong_FromLong($1[i]);
+        if (!origin) {
+            Py_CLEAR($result);
+            SWIG_fail;
+        }
+        PyTuple_SET_ITEM($result, static_cast<Py_ssize_t>(i), origin);
+    }
+}
+
+%typemap(in, numinputs=0) (uint32_t *firstOut, uint32_t *secondOut)
+    (uint32_t first = 0, uint32_t second = 0) {
+    $1 = &first;
+    $2 = &second;
+}
+
+%typemap(argout) (uint32_t *firstOut, uint32_t *secondOut) {
+    Py_DECREF($result);
+    $result = Py_BuildValue("(II)", static_cast<unsigned int>(*$1), static_cast<unsigned int>(*$2));
+    if (!$result) {
+        SWIG_fail;
+    }
 }
 
 %include "steamworks_c_api.h"

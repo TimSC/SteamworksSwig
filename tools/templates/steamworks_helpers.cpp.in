@@ -1084,13 +1084,13 @@ bool Steam_ManualDispatch_GetAPICallResult( HSteamPipe pipe, SteamAPICall_t apiC
 		callbackID,
 		&failed
 	);
+	g_manualDispatchAPICallResultFailed = failed;
 	if ( !ok )
 	{
 		return false;
 	}
 
 	g_manualDispatchAPICallResultData = resultData;
-	g_manualDispatchAPICallResultFailed = failed;
 	g_manualDispatchAPICallResultCallbackID = callbackID;
 	return true;
 }
@@ -2928,3 +2928,90 @@ bool Steam_Friends_IsFriendInCurrentGame( uint64_steamid friendID )
 }
 
 {{ generated_definitions }}
+
+void Steam_Input_GetConnectedControllers( uint64_t *handlesOut, size_t capacity, size_t *countOut )
+{
+	*countOut = 0;
+	auto *input = SteamInput();
+	if ( !input )
+	{
+		return;
+	}
+
+	InputHandle_t handles[STEAM_INPUT_MAX_COUNT] = {};
+	const int count = input->GetConnectedControllers( handles );
+	for ( int i = 0; i < count && i < STEAM_INPUT_MAX_COUNT && static_cast<size_t>( i ) < capacity; ++i )
+	{
+		handlesOut[i] = handles[i];
+		++*countOut;
+	}
+}
+
+void Steam_Input_GetDigitalActionData( InputHandle_t controller, InputDigitalActionHandle_t action, bool *activeOut, bool *pressedOut )
+{
+	auto *input = SteamInput();
+	const auto data = input ? input->GetDigitalActionData( controller, action ) : InputDigitalActionData_t{};
+	*activeOut = data.bActive;
+	*pressedOut = data.bState;
+}
+
+void Steam_Input_GetAnalogActionData( InputHandle_t controller, InputAnalogActionHandle_t action, bool *activeOut, int32_t *modeOut, float *xOut, float *yOut )
+{
+	auto *input = SteamInput();
+	const auto data = input ? input->GetAnalogActionData( controller, action ) : InputAnalogActionData_t{};
+	*activeOut = data.bActive;
+	*modeOut = static_cast<int32_t>( data.eMode );
+	*xOut = data.x;
+	*yOut = data.y;
+}
+
+namespace
+{
+template <typename ActionHandle>
+void GetInputActionOrigins(
+	int (ISteamInput::*getOrigins)( InputHandle_t, InputActionSetHandle_t, ActionHandle, EInputActionOrigin * ),
+	InputHandle_t controller, InputActionSetHandle_t actionSet, ActionHandle action,
+	int32_t *originsOut, size_t capacity, size_t *countOut )
+{
+	*countOut = 0;
+	auto *input = SteamInput();
+	if ( !input )
+	{
+		return;
+	}
+
+	EInputActionOrigin origins[STEAM_INPUT_MAX_ORIGINS] = {};
+	const int count = (input->*getOrigins)( controller, actionSet, action, origins );
+	for ( int i = 0; i < count && i < STEAM_INPUT_MAX_ORIGINS && static_cast<size_t>( i ) < capacity; ++i )
+	{
+		originsOut[i] = static_cast<int32_t>( origins[i] );
+		++*countOut;
+	}
+}
+}
+
+void Steam_Input_GetDigitalActionOrigins( InputHandle_t controller, InputActionSetHandle_t actionSet,
+	InputDigitalActionHandle_t action, int32_t *originsOut, size_t capacity, size_t *countOut )
+{
+	GetInputActionOrigins( &ISteamInput::GetDigitalActionOrigins, controller, actionSet, action, originsOut, capacity, countOut );
+}
+
+void Steam_Input_GetAnalogActionOrigins( InputHandle_t controller, InputActionSetHandle_t actionSet,
+	InputAnalogActionHandle_t action, int32_t *originsOut, size_t capacity, size_t *countOut )
+{
+	GetInputActionOrigins( &ISteamInput::GetAnalogActionOrigins, controller, actionSet, action, originsOut, capacity, countOut );
+}
+
+void Steam_NetworkingSockets_CreateSocketPair( bool networkLoopback, uint32_t *firstOut, uint32_t *secondOut )
+{
+	*firstOut = k_HSteamNetConnection_Invalid;
+	*secondOut = k_HSteamNetConnection_Invalid;
+	auto *sockets = SteamAPI_SteamNetworkingSockets_SteamAPI();
+	HSteamNetConnection first = k_HSteamNetConnection_Invalid;
+	HSteamNetConnection second = k_HSteamNetConnection_Invalid;
+	if ( sockets && sockets->CreateSocketPair( &first, &second, networkLoopback, nullptr, nullptr ) )
+	{
+		*firstOut = first;
+		*secondOut = second;
+	}
+}

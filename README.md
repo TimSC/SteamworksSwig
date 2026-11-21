@@ -94,6 +94,40 @@ creates the intentionally SDK-free source archive and then attempts to compile
 a wheel from that isolated archive. Such a wheel build cannot succeed unless
 the external SDK location is explicitly available inside the second build.
 
+## Live Steam API Smoke Test
+
+Run the low-impact Python smoke test from the project root after installing
+with `pip install .`. The build generates the API model the test uses to
+select calls. Start Steam, sign in, and make sure `steam_appid.txt` in the
+project root contains the App ID you intend to test. You can use Valve's
+public Spacewar App ID (`480`) for a basic smoke test.
+
+```bash
+python3 examples/python/live_api_smoke.py --limit 10
+python3 examples/python/live_api_smoke.py
+```
+
+The script initializes Steamworks, pumps callbacks, runs selected SDK
+getters, and shuts Steamworks down. The full sweep also checks the configured
+app's installation and depots, the first achievement name, and the first
+friend lookup when those data are available. It skips
+operations such as creating lobbies, writing stats, and requesting auth
+tickets. Omit `--limit` to run the full selection, or
+add `--json` for machine-readable results. A missing wrapper or an exception
+causes a nonzero exit status.
+
+To include read-only asynchronous requests, run:
+
+```bash
+python3 examples/python/live_api_smoke.py --async
+```
+
+This queries up to 10 available lobbies for the configured app, refreshes
+metadata for one lobby if available, and checks completion of a following-list
+request. Each request has a timeout. Missing data and lobbies that disappear
+are reported as skips. Only failures affect the exit status. Use
+`--limit 0 --async` to run just the asynchronous checks.
+
 ## Generation Pipeline
 
 ```text

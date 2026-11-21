@@ -46,6 +46,14 @@
     ["std::string", "Steam_Lobby_GetListLobbyNameByIndex", [["int", "index"]]],
     ["void", "Steam_Lobby_ClearAsyncState", []]
   ],
+  "python_helpers": [
+    ["void", "Steam_Input_GetDigitalActionOrigins", [["InputHandle_t", "controller"], ["InputActionSetHandle_t", "actionSet"], ["InputDigitalActionHandle_t", "action"], ["int32_t *", "originsOut"], ["size_t", "capacity"], ["size_t *", "countOut"]]],
+    ["void", "Steam_Input_GetAnalogActionOrigins", [["InputHandle_t", "controller"], ["InputActionSetHandle_t", "actionSet"], ["InputAnalogActionHandle_t", "action"], ["int32_t *", "originsOut"], ["size_t", "capacity"], ["size_t *", "countOut"]]],
+    ["void", "Steam_NetworkingSockets_CreateSocketPair", [["bool", "networkLoopback"], ["uint32_t *", "firstOut"], ["uint32_t *", "secondOut"]]],
+    ["void", "Steam_Input_GetConnectedControllers", [["uint64_t *", "handlesOut"], ["size_t", "capacity"], ["size_t *", "countOut"]]],
+    ["void", "Steam_Input_GetDigitalActionData", [["InputHandle_t", "controller"], ["InputDigitalActionHandle_t", "action"], ["bool *", "activeOut"], ["bool *", "pressedOut"]]],
+    ["void", "Steam_Input_GetAnalogActionData", [["InputHandle_t", "controller"], ["InputAnalogActionHandle_t", "action"], ["bool *", "activeOut"], ["int32_t *", "modeOut"], ["float *", "xOut"], ["float *", "yOut"]]]
+  ],
   "helper_functions": [
     ["SteamworksBytes", "Steam_User_GetLastAuthSessionTicketBytes", []],
     ["HAuthTicket", "Steam_User_GetAuthSessionTicketBytes", [["int", "maxTicketSize"]]],

@@ -7,15 +7,15 @@ Regenerate it after changing the SDK, C ABI generator, or curated helper list.
 
 - SDK interface methods supported by the generated C ABI: 600 of 921 (65.1%)
 - SDK interface methods currently skipped: 321
-- Total C ABI functions, including manual helpers: 934
+- Total C ABI functions, including manual helpers: 942
 
 ## C ABI Function Sources
 
 | Source | Functions |
 | --- | ---: |
-| Curated C-safe helpers | 190 |
+| Curated C-safe helpers | 196 |
 | Manual lifecycle/global helpers | 45 |
-| Manual-dispatch callback helpers | 99 |
+| Manual-dispatch callback helpers | 101 |
 | SDK methods | 600 |
 
 ## Language Support Buckets
@@ -23,8 +23,9 @@ Regenerate it after changing the SDK, C ABI generator, or curated helper list.
 | Bucket | Functions |
 | --- | ---: |
 | `bytes_or_bytes_list` | 15 |
-| `scalar` | 804 |
-| `scalar_string` | 104 |
+| `python_only` | 6 |
+| `scalar` | 805 |
+| `scalar_string` | 105 |
 | `string_list` | 11 |
 
 ## Interface Coverage
@@ -39,7 +40,7 @@ Regenerate it after changing the SDK, C ABI generator, or curated helper list.
 | `GameServerStats` | 10 | 7 | 70.0% | 0 |
 | `HTMLSurface` | 37 | 30 | 81.1% | 0 |
 | `HTTP` | 25 | 15 | 60.0% | 6 |
-| `Input` | 48 | 38 | 79.2% | 1 |
+| `Input` | 48 | 38 | 79.2% | 6 |
 | `Inventory` | 38 | 15 | 39.5% | 5 |
 | `Matchmaking` | 38 | 33 | 86.8% | 2 |
 | `MatchmakingPingResponse` | 2 | 0 | 0.0% | 0 |
@@ -52,7 +53,7 @@ Regenerate it after changing the SDK, C ABI generator, or curated helper list.
 | `Networking` | 22 | 9 | 40.9% | 3 |
 | `NetworkingFakeUDPPort` | 4 | 0 | 0.0% | 0 |
 | `NetworkingMessages` | 6 | 0 | 0.0% | 5 |
-| `NetworkingSockets` | 47 | 15 | 31.9% | 23 |
+| `NetworkingSockets` | 47 | 15 | 31.9% | 24 |
 | `NetworkingUtils` | 41 | 14 | 34.1% | 0 |
 | `ParentalSettings` | 6 | 6 | 100.0% | 0 |
 | `Parties` | 12 | 7 | 58.3% | 1 |

@@ -27,5 +27,6 @@ def _function_list(specs: list[list]) -> list[tuple]:
 _SPECS = _load_specs()
 
 C_MANUAL_FUNCTIONS = _function_list(_SPECS["manual_functions"])
-C_HELPER_FUNCTIONS = _function_list(_SPECS["helper_functions"])
+PYTHON_HELPERS = _function_list(_SPECS["python_helpers"])
+C_HELPER_FUNCTIONS = _function_list(_SPECS["helper_functions"]) + PYTHON_HELPERS
 MANUAL_DISPATCH_FUNCTIONS = _function_list(_SPECS["manual_dispatch_functions"])

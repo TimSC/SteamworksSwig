@@ -15,7 +15,7 @@ from generate_output_helpers import (
 )
 from generator_io import load_json, write_text
 from steamworks_discovery import declared_identifiers, iter_wrappable_methods
-from steamworks_helpers import C_HELPER_FUNCTIONS, C_MANUAL_FUNCTIONS
+from steamworks_helpers import C_HELPER_FUNCTIONS, C_MANUAL_FUNCTIONS, PYTHON_HELPERS
 from steamworks_model import c_api_methods, c_api_model, classify_skipped_methods
 
 
@@ -60,6 +60,10 @@ def generate_model(api: dict, steam_include: Path, api_json: Path | None = None)
         helper_functions=C_HELPER_FUNCTIONS + output_helper_functions(output_helper_candidates),
         manual_dispatch_functions=manual_dispatch_c_functions(),
     )
+    python_helpers = {name for _, name, _ in PYTHON_HELPERS}
+    for method in c_methods:
+        if method["helper_name"] in python_helpers:
+            method["python_only"] = True
     skipped_methods = classify_skipped_methods(api, flat_identifiers, c_methods)
     model = c_api_model(
         api,
@@ -69,6 +73,20 @@ def generate_model(api: dict, steam_include: Path, api_json: Path | None = None)
         output_helpers=output_helpers,
         template_features=template_features(steam_include),
     )
+    enum_prefixes = {
+        "EResult": "k_EResult",
+        "EChatRoomEnterResponse": "k_EChatRoomEnterResponse",
+        "ELobbyDistanceFilter": "k_ELobbyDistanceFilter",
+        "EFloatingGamepadTextInputMode": "k_EFloatingGamepadTextInputModeMode",
+    }
+    model["python_enums"] = {
+        enum["enumname"]: [
+            (value["name"].removeprefix(enum_prefixes[enum["enumname"]]), int(value["value"], 0))
+            for value in enum["values"]
+        ]
+        for enum in api["enums"]
+        if enum["enumname"] in enum_prefixes
+    }
     model["sdk"] = {
         "api_json": str(
             (api_json or steam_include / "steam" / "steam_api.json").resolve()

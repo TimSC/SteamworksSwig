@@ -156,7 +156,8 @@ jobs:
           # setup.py already bundles the Windows runtime beside the extension.
           CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: ''
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
-          CIBW_TEST_COMMAND: 'python -c "import steamworks; import steamworks._steamworks"'
+          CIBW_TEST_SOURCES: tools/smoke_wheel.py
+          CIBW_TEST_COMMAND: python tools/smoke_wheel.py
 
       - name: Validate wheel metadata and contents
         shell: bash

@@ -33,10 +33,14 @@ For a broader low-impact live API sweep, run:
 python3 examples/python/live_api_smoke.py
 ```
 
-The live smoke script calls no-argument read-style APIs across many Steamworks
-interfaces. It is intended for local manual testing with Steam running, not for
+The live smoke script calls read-style APIs across many Steamworks interfaces,
+including app installation, achievement, and friend lookups. It is intended for local manual testing with Steam running, not for
 default CI, and avoids operations such as auth-ticket creation, file writes,
 lobby creation, stat updates, and other state-changing calls.
+
+Add `--async` to include a lobby search, a metadata refresh for one available
+lobby, and a following-list completion check. Use `--limit 0 --async` to run just
+the asynchronous checks.
 
 To compare automatic and manual callback dispatch on async calls:
 
@@ -65,6 +69,128 @@ steamworks.friends.persona_name()
 
 Grouped wrappers are generated from `generated/steamworks_c_api_model.json` by
 `tools/generate_python.py` during the normal build.
+
+## Native Steam Input
+
+Call `steamworks.input.init(True)` after initializing Steamworks. Pump
+`steamworks.input.run_frame(False)` before polling each frame.
+
+| Method | Return value |
+| --- | --- |
+| `input.connected_controllers()` | Tuple of unsigned 64-bit controller handles, empty when none are connected |
+| `input.digital_action_data(controller, action)` | `DigitalActionData(active, pressed)`, with two booleans |
+| `input.analog_action_data(controller, action)` | `AnalogActionData(active, mode, x, y)`, with a numeric SDK mode and axes in SDK coordinates |
+| `input.digital_action_origins(controller, action_set, action)` | Tuple of numeric digital action origins |
+| `input.analog_action_origins(controller, action_set, action)` | Tuple of numeric analog action origins |
+
+Resolve action and action-set handles by name and activate the current set for
+each controller. A zero action handle means the action is unavailable. Read
+values only when `active` is true. A held digital action keeps returning
+`pressed=True`, so compare it with the prior sample to detect a press edge.
+Call `input.shutdown()` before `steamworks.shutdown()`.
+
+With Steam running and your app's Input configuration loaded, pass an action
+set and two action names from that configuration to the polling example.
+
+```sh
+python examples/python/steam_input.py --glyphs flight fire movement
+```
+
+Pass an origin to a glyph helper such as `input.glyph_svg_for_action_origin()`.
+Origins remain integers so they can include values introduced by newer Steam clients.
+[Steam Input reference](https://partner.steamgames.com/doc/api/ISteamInput#GetDigitalActionOrigins)
+
+## Connection Results And Queue Metrics
+
+The existing send methods return integer Steam result codes. Compare them with
+`steamworks.EResult` and use `steamworks.result_name(result)` for logging, including
+codes the installed SDK does not name. `EResult.LimitExceeded` means send queue
+pressure. Retry or reduce queued traffic while the connection is still open.
+Use connection state and results such as `EResult.NoConnection` to detect closure.
+[Steam Networking Sockets reference](https://partner.steamgames.com/doc/api/ISteamNetworkingSockets#SendMessageToConnection)
+
+`networking_sockets.connection_real_time_status(connection)` returns a
+`ConnectionRealTimeStatus` with the SDK result, state, ping (ms), pending reliable
+and unreliable bytes, unacknowledged reliable bytes, and queue time (µs).
+It returns `None` when the client interface is unavailable. Check the returned
+`result` before using the metrics. Automatic dispatch users can call
+`enable_connection_status_callbacks()` and read typed events with
+`poll_connection_status_changed(max_events)`. The typed poll and the existing
+string poll drain the same queue. Manual dispatch users can register for
+`ConnectionStatusChanged` with `ClientCallbacks`.
+
+```sh
+python examples/python/socket_pair.py
+```
+
+The example creates a loopback pair, checks a binary round trip, lowers the
+send buffer limit to demonstrate queue pressure, and observes peer closure.
+
+## Request-Scoped Lobby Operations
+
+After calling `steamworks.init_ex()`, create one `ClientCallbacks` per client
+lifetime and call `pump()` on the client thread instead of using automatic
+dispatch. It owns the client pipe's callback loop and delivers registered
+typed events on that thread. The lower-level manual APIs remain available to
+applications that manage the pipe themselves.
+
+```python
+callbacks = steamworks.ClientCallbacks()
+request = callbacks.join_lobby(lobby_id)
+
+# Inside the game loop:
+callbacks.pump()
+result = request.poll()
+if result is not None:
+    print(result.status, result.io_failure, result.join_response)
+```
+
+`create_lobby(lobby_type, max_members)`, `join_lobby(lobby_id)`, and
+`request_lobby_list()` return a `LobbyRequest` with its Steam API call handle.
+`poll()` returns `None` while pending and retains the same terminal
+`LobbyRequestResult` after completion. A `complete` result carries the Steam
+create code, join response, or lobby IDs, as applicable, and an I/O-failure
+flag. `rejected` means Steam returned no call handle. `unavailable` means
+the completion arrived without a decodable result.
+
+Steam supports one active lobby search. Starting a newer search through this
+dispatcher marks the pending older request `superseded`. Any late completion
+for the old handle is discarded. The dispatcher snapshots lobby IDs while
+handling the matching completion, so a later search cannot change a completed
+result. Add native matchmaking filters before calling
+`callbacks.request_lobby_list()` and route all searches on that pipe through it.
+[Steam Matchmaking reference](https://partner.steamgames.com/doc/api/ISteamMatchmaking#RequestLobbyList)
+
+The discovery example looks up a friend's lobby, waits for a successful
+`LobbyDataUpdate` before reading its metadata, and merges it with matching
+public results by lobby ID.
+
+```sh
+python examples/python/lobby_discovery.py FRIEND_STEAM_ID mode ranked
+```
+
+## Steam Invites And Floating Keyboard
+
+The invite example registers separate handlers for `GameLobbyJoinRequested`
+(lobby and friend IDs) and `GameRichPresenceJoinRequested` (friend ID and the
+game's connect string). It also accepts the launch argument Steam passes when
+a lobby invite starts the game. [Steam Friends reference](https://partner.steamgames.com/doc/api/ISteamFriends#GameLobbyJoinRequested_t)
+
+```sh
+python examples/python/steam_invites.py
+python examples/python/steam_invites.py +connect_lobby LOBBY_STEAM_ID
+```
+
+The Pygame example uses `EFloatingGamepadTextInputMode.SingleLine` and the chat
+field's window-relative rectangle. It receives text through SDL, handles
+submission and cancellation, and restores gamepad focus on
+`FloatingGamepadTextInputDismissed`. The dismissal event has no submission
+flag. Run the example with Steam's overlay available and Pygame 2 installed.
+[Steam Utils reference](https://partner.steamgames.com/doc/api/ISteamUtils#ShowFloatingGamepadTextInput)
+
+```sh
+python examples/python/deck_text_input.py
+```
 
 ## SpaceWar Server, Lobby, And Networking
 

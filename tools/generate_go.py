@@ -232,6 +232,8 @@ def generate(model: dict) -> str:
     callback_methods = []
     candidates = []
     for method in model_methods(model):
+        if method.get("language_support") == "python_only":
+            continue
         c_name = raw_c_name(method)
         if c_name.startswith("SWS_Steam_ManualDispatch_CallbackID"):
             callback_name = c_name.removeprefix("SWS_Steam_ManualDispatch_CallbackID")

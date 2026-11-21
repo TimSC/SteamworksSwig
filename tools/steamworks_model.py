@@ -123,9 +123,13 @@ def c_method(
     if c_return_type is None:
         return None
 
+    output_types = {"uint64_t *", "uint32_t *", "size_t *", "bool *", "int32_t *", "float *"}
     params = []
     for param_type, param_name in method["params"]:
-        c_param_type = resolve_c_type(param_type, typedefs, enums)
+        if source == "helper" and param_type in output_types:
+            c_param_type = param_type
+        else:
+            c_param_type = resolve_c_type(param_type, typedefs, enums)
         if c_param_type is None:
             return None
         params.append(
@@ -209,6 +213,8 @@ def method_friendly_name(method: dict) -> str:
 
 
 def method_language_support(method: dict) -> str:
+    if method.get("python_only"):
+        return "python_only"
     c_types = [method["return_type"]]
     c_types.extend(param["c_type"] for param in method["params"])
     special_types = {c_type for c_type in c_types if c_type.startswith("SWS_")}
